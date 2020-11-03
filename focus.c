@@ -15,7 +15,6 @@
 #include <rtsavapi.h>
 #include <rtsvideo.h>
 #include <malloc.h>
-#include <dmalloc.h>
 //program header
 #include "../../tools/tools_interface.h"
 //server header
@@ -53,7 +52,7 @@ int video2_focus_proc(isp_af_para_t *ctrl, int frame)
 	if( (frame - last_frame) > AF_FRAME_INTERVAL ) {
         ret = rts_av_query_isp_af(&af);
         if (ret) {
-        	log_err("query isp af ctrl fail, ret = %d\n", ret);
+        	log_qcy(DEBUG_SERIOUS, "query isp af ctrl fail, ret = %d\n", ret);
         	RTS_SAFE_RELEASE(af, rts_av_release_isp_af);
         	return 0;
         }
@@ -68,7 +67,7 @@ int video2_focus_init(isp_af_para_t *ctrl)
     last_frame = 0;
     ret = rts_av_query_isp_af(&af);
     if (ret) {
-    	log_err("query isp af ctrl fail, ret = %d\n", ret);
+    	log_qcy(DEBUG_SERIOUS, "query isp af ctrl fail, ret = %d\n", ret);
     	RTS_SAFE_RELEASE(af, rts_av_release_isp_af);
         return -1;
     }

@@ -17,7 +17,6 @@
 #include <rtsavapi.h>
 #include <rtsvideo.h>
 #include <malloc.h>
-#include <dmalloc.h>
 #include <miss.h>
 //program header
 #include "../../manager/manager_interface.h"
@@ -126,7 +125,7 @@ static int send_message(int receiver, message_t *msg)
 			st = manager_message(msg);
 			break;
 		default:
-			log_err("unknown message target! %d", receiver);
+			log_qcy(DEBUG_SERIOUS, "unknown message target! %d", receiver);
 			break;
 	}
 	return st;
@@ -204,8 +203,8 @@ static int video2_set_property(message_t *msg)
 			if(!ret) {
 				config.isp.flip = 0;
 				config.isp.mirror = 0;
-				log_info("changed the isp flip = %d", config.isp.flip);
-				log_info("changed the isp mirror = %d", config.isp.mirror);
+				log_qcy(DEBUG_SERIOUS, "changed the isp flip = %d", config.isp.flip);
+				log_qcy(DEBUG_SERIOUS, "changed the isp mirror = %d", config.isp.mirror);
 				video2_config_video_set(CONFIG_VIDEO2_ISP, &config.isp);
 			}
 		}
@@ -215,8 +214,8 @@ static int video2_set_property(message_t *msg)
 			if(!ret) {
 				config.isp.flip = 1;
 				config.isp.mirror = 1;
-				log_info("changed the isp flip = %d", config.isp.flip);
-				log_info("changed the isp mirror = %d", config.isp.mirror);
+				log_qcy(DEBUG_SERIOUS, "changed the isp flip = %d", config.isp.flip);
+				log_qcy(DEBUG_SERIOUS, "changed the isp mirror = %d", config.isp.mirror);
 				video2_config_video_set(CONFIG_VIDEO2_ISP, &config.isp);
 			}
 		}
@@ -245,7 +244,7 @@ static int video2_set_property(message_t *msg)
 			mode = DAY_NIGHT_ON;
 		}
 		if(!ret) {
-			log_info("changed the smart night mode = %d", config.isp.smart_ir_mode);
+			log_qcy(DEBUG_SERIOUS, "changed the smart night mode = %d", config.isp.smart_ir_mode);
 			video2_config_video_set(CONFIG_VIDEO2_ISP, &config.isp);
 		    /********message body********/
 			send_msg.arg_in.cat = DEVICE_CTRL_DAY_NIGHT_MODE;
@@ -260,7 +259,7 @@ static int video2_set_property(message_t *msg)
 			ret = video2_isp_set_attr(RTS_VIDEO_CTRL_ID_LDC, temp );
 			if(!ret) {
 				config.isp.ldc = temp;
-				log_info("changed the lens distortion correction = %d", config.isp.ldc);
+				log_qcy(DEBUG_SERIOUS, "changed the lens distortion correction = %d", config.isp.ldc);
 				video2_config_video_set(CONFIG_VIDEO2_ISP, &config.isp);
 			}
 		}
@@ -298,7 +297,7 @@ static int *video2_3acontrol_func(void *arg)
     	video2_focus_proc(&ctrl.af_para,stream.frame);
     }
     //release
-    log_info("-----------thread exit: server_video2_3a_control-----------");
+    log_qcy(DEBUG_SERIOUS, "-----------thread exit: server_video2_3a_control-----------");
     video2_white_balance_release();
     video2_exposure_release();
     video2_focus_release();
@@ -318,7 +317,7 @@ static int *video2_osd_func(void *arg)
     memcpy( &ctrl,(video2_osd_config_t*)arg, sizeof(video2_osd_config_t));
     ret = video2_osd_init(&ctrl, stream.osd);
     if( ret != 0) {
-    	log_err("osd init error!");
+    	log_qcy(DEBUG_SERIOUS, "osd init error!");
     	goto exit;
     }
     server_set_status(STATUS_TYPE_THREAD_START, THREAD_OSD, 1 );
@@ -333,7 +332,7 @@ static int *video2_osd_func(void *arg)
     }
     //release
 exit:
-    log_info("-----------thread exit: server_video2_osd-----------");
+    log_qcy(DEBUG_SERIOUS, "-----------thread exit: server_video2_osd-----------");
     video2_osd_release();
     server_set_status(STATUS_TYPE_THREAD_START, THREAD_OSD, 0 );
     pthread_exit(0);
@@ -372,13 +371,13 @@ static int stream_start(void)
 	config.profile.profile[config.profile.quality].fmt = RTS_V_FMT_YUV420SEMIPLANAR;
 	ret = rts_av_set_profile(stream.isp, &config.profile.profile[config.profile.quality]);
 	if (ret) {
-		log_err("set isp profile fail, ret = %d", ret);
+		log_qcy(DEBUG_SERIOUS, "set isp profile fail, ret = %d", ret);
 		return -1;
 	}
 	if( stream.isp != -1 ) {
 		ret = rts_av_enable_chn(stream.isp);
 		if (ret) {
-			log_err("enable isp fail, ret = %d", ret);
+			log_qcy(DEBUG_SERIOUS, "enable isp fail, ret = %d", ret);
 			return -1;
 		}
 	}
@@ -388,7 +387,7 @@ static int stream_start(void)
 	if( stream.h264 != -1 ) {
 		ret = rts_av_enable_chn(stream.h264);
 		if (ret) {
-			log_err("enable h264 fail, ret = %d", ret);
+			log_qcy(DEBUG_SERIOUS, "enable h264 fail, ret = %d", ret);
 			return -1;
 		}
 	}
@@ -399,7 +398,7 @@ static int stream_start(void)
 		if( stream.osd != -1 ) {
 			ret = rts_av_enable_chn(stream.osd);
 			if (ret) {
-				log_err("enable osd fail, ret = %d", ret);
+				log_qcy(DEBUG_SERIOUS, "enable osd fail, ret = %d", ret);
 				return -1;
 			}
 		}
@@ -410,27 +409,27 @@ static int stream_start(void)
 	stream.frame = 0;
     ret = rts_av_start_recv(stream.h264);
     if (ret) {
-    	log_err("start recv h264 fail, ret = %d", ret);
+    	log_qcy(DEBUG_SERIOUS, "start recv h264 fail, ret = %d", ret);
     	return -1;
     }
 /*    //start the 3a control thread
 	ret = pthread_create(&isp_3a_id, NULL, video2_3acontrol_func, (void*)&config.a3ctrl);
 	if(ret != 0) {
-		log_err("3a control thread create error! ret = %d",ret);
+		log_qcy(DEBUG_SERIOUS, "3a control thread create error! ret = %d",ret);
 		return -1;
 	 }
 	else {
-		log_info("3a control thread create successful!");
+		log_qcy(DEBUG_SERIOUS, "3a control thread create successful!");
 	}
 */
 	if( config.osd.enable && stream.osd != -1 ) {
 		//start the osd thread
 		ret = pthread_create(&osd_id, NULL, video2_osd_func, (void*)&config.osd);
 		if(ret != 0) {
-			log_err("osd thread create error! ret = %d",ret);
+			log_qcy(DEBUG_SERIOUS, "osd thread create error! ret = %d",ret);
 		 }
 		else {
-			log_info("osd thread create successful!");
+			log_qcy(DEBUG_SERIOUS, "osd thread create successful!");
 		}
 	}
     return 0;
@@ -456,44 +455,44 @@ static int video2_init(void)
 	stream_init();
 	stream.isp = rts_av_create_isp_chn(&config.isp.isp_attr);
 	if (stream.isp < 0) {
-		log_err("fail to create isp chn, ret = %d", stream.isp);
+		log_qcy(DEBUG_SERIOUS, "fail to create isp chn, ret = %d", stream.isp);
 		return -1;
 	}
-	log_info("isp chnno:%d", stream.isp);
+	log_qcy(DEBUG_SERIOUS, "isp chnno:%d", stream.isp);
 	stream.h264 = rts_av_create_h264_chn(&config.h264.h264_attr);
 	if (stream.h264 < 0) {
-		log_err("fail to create h264 chn, ret = %d", stream.h264);
+		log_qcy(DEBUG_SERIOUS, "fail to create h264 chn, ret = %d", stream.h264);
 		return -1;
 	}
-	log_info("h264 chnno:%d", stream.h264);
+	log_qcy(DEBUG_SERIOUS, "h264 chnno:%d", stream.h264);
 	config.profile.profile[config.profile.quality].fmt = RTS_V_FMT_YUV420SEMIPLANAR;
 	ret = rts_av_set_profile(stream.isp, &config.profile.profile[config.profile.quality]);
 	if (ret) {
-		log_err("set isp profile fail, ret = %d", ret);
+		log_qcy(DEBUG_SERIOUS, "set isp profile fail, ret = %d", ret);
 		return -1;
 	}
 	if( config.osd.enable ) {
         stream.osd = rts_av_create_osd_chn();
         if (stream.osd < 0) {
-        	log_err("fail to create osd chn, ret = %d\n", stream.osd);
+        	log_qcy(DEBUG_SERIOUS, "fail to create osd chn, ret = %d\n", stream.osd);
         	return -1;
         }
-        log_info("osd chnno:%d", stream.osd);
+        log_qcy(DEBUG_SERIOUS, "osd chnno:%d", stream.osd);
         ret = rts_av_bind(stream.isp, stream.osd);
     	if (ret) {
-    		log_err("fail to bind isp and osd, ret %d", ret);
+    		log_qcy(DEBUG_SERIOUS, "fail to bind isp and osd, ret %d", ret);
     		return -1;
     	}
     	ret = rts_av_bind(stream.osd, stream.h264);
     	if (ret) {
-    		log_err("fail to bind osd and h264, ret %d", ret);
+    		log_qcy(DEBUG_SERIOUS, "fail to bind osd and h264, ret %d", ret);
     		return -1;
     	}
 	}
 	else {
     	ret = rts_av_bind(stream.isp, stream.h264);
     	if (ret) {
-    		log_err("fail to bind isp and h264, ret %d", ret);
+    		log_qcy(DEBUG_SERIOUS, "fail to bind isp and h264, ret %d", ret);
     		return -1;
     	}
 	}
@@ -513,16 +512,16 @@ static int video2_main(void)
 	if (buffer) {
 		if( misc_get_bit(info.status2, RUN_MODE_SEND_MISS) ) {
 			if( write_video2_buffer(buffer, MSG_MISS_VIDEO_DATA, SERVER_MISS, 0) != 0 )
-				log_err("Miss ring buffer push failed!");
+				log_qcy(DEBUG_SERIOUS, "Miss ring buffer push failed!");
 		}
 		if( misc_get_bit(info.status2, RUN_MODE_SAVE) ) {
 			if( write_video2_buffer(buffer, MSG_RECORDER_VIDEO_DATA, SERVER_RECORDER, RECORDER_TYPE_NORMAL) != 0 )
-				log_err("Recorder ring buffer push failed!");
+				log_qcy(DEBUG_SERIOUS, "Recorder ring buffer push failed!");
 		}
 		if( misc_get_bit(info.status2, RUN_MODE_SEND_MICLOUD) ) {
 /*	wait for other server
  * 			if( write_video2_buffer(buffer, MSG_MICLOUD_VIDEO2_DATA, SERVER_MICLOUD, 0) != 0 )
-				log_err("Micloud ring buffer push failed!");
+				log_qcy(DEBUG_SERIOUS, "Micloud ring buffer push failed!");
 */
 		}
 		stream.frame++;
@@ -581,7 +580,7 @@ static int server_set_status(int type, int st, int value)
 	int ret=-1;
 	ret = pthread_rwlock_wrlock(&info.lock);
 	if(ret)	{
-		log_err("add lock fail, ret = %d", ret);
+		log_qcy(DEBUG_SERIOUS, "add lock fail, ret = %d", ret);
 		return ret;
 	}
 	if(type == STATUS_TYPE_STATUS)
@@ -594,7 +593,7 @@ static int server_set_status(int type, int st, int value)
 		misc_set_bit(&info.thread_start, st, value);
 	ret = pthread_rwlock_unlock(&info.lock);
 	if (ret)
-		log_err("add unlock fail, ret = %d", ret);
+		log_qcy(DEBUG_SERIOUS, "add unlock fail, ret = %d", ret);
 	return ret;
 }
 
@@ -604,7 +603,7 @@ static int server_get_status(int type, int value)
 	int ret;
 	ret = pthread_rwlock_wrlock(&info.lock);
 	if(ret)	{
-		log_err("add lock fail, ret = %d", ret);
+		log_qcy(DEBUG_SERIOUS, "add lock fail, ret = %d", ret);
 		return ret;
 	}
 	if(type == STATUS_TYPE_STATUS)
@@ -617,7 +616,7 @@ static int server_get_status(int type, int value)
 		st = misc_get_bit(info.thread_start, value);
 	ret = pthread_rwlock_unlock(&info.lock);
 	if (ret)
-		log_err("add unlock fail, ret = %d", ret);
+		log_qcy(DEBUG_SERIOUS, "add unlock fail, ret = %d", ret);
 	return st;
 }
 
@@ -660,7 +659,7 @@ static int server_message_proc(void)
 	msg_init(&msg);
 	ret = pthread_rwlock_wrlock(&message.lock);
 	if(ret)	{
-		log_err("add message lock fail, ret = %d\n", ret);
+		log_qcy(DEBUG_SERIOUS, "add message lock fail, ret = %d\n", ret);
 		return ret;
 	}
 	if( info.msg_lock ) {
@@ -670,7 +669,7 @@ static int server_message_proc(void)
 	ret = msg_buffer_pop(&message, &msg);
 	ret1 = pthread_rwlock_unlock(&message.lock);
 	if (ret1) {
-		log_err("add message unlock fail, ret = %d\n", ret1);
+		log_qcy(DEBUG_SERIOUS, "add message unlock fail, ret = %d\n", ret1);
 	}
 	if( ret == -1) {
 		msg_free(&msg);
@@ -782,7 +781,7 @@ static int server_message_proc(void)
 			}
 			break;
 		default:
-			log_err("not processed message = %d", msg.message);
+			log_qcy(DEBUG_SERIOUS, "not processed message = %d", msg.message);
 			break;
 	}
 	msg_free(&msg);
@@ -795,8 +794,8 @@ static int heart_beat_proc(void)
 	message_t msg;
 	long long int tick = 0;
 	tick = time_get_now_stamp();
-	if( (tick - info.tick) > SERVER_HEARTBEAT_INTERVAL ) {
-		info.tick = tick;
+	if( (tick - info.tick3) > SERVER_HEARTBEAT_INTERVAL ) {
+		info.tick3 = tick;
 	    /********message body********/
 		msg_init(&msg);
 		msg.message = MSG_MANAGER_HEARTBEAT;
@@ -821,7 +820,7 @@ static void task_error(void)
 	unsigned int tick=0;
 	switch( info.status ) {
 		case STATUS_ERROR:
-			log_err("!!!!!!!!error in video2, restart in 5 s!");
+			log_qcy(DEBUG_SERIOUS, "!!!!!!!!error in video2, restart in 5 s!");
 			info.tick = time_get_now_stamp();
 			info.status = STATUS_NONE;
 			break;
@@ -833,7 +832,7 @@ static void task_error(void)
 			}
 			break;
 		default:
-			log_err("!!!!!!!unprocessed server status in task_error = %d", info.status);
+			log_qcy(DEBUG_SERIOUS, "!!!!!!!unprocessed server status in task_error = %d", info.status);
 			break;
 	}
 	usleep(1000);
@@ -870,7 +869,7 @@ static void task_control_ext(void)
 		case STATUS_WAIT:
 			if( info.task.msg.arg_in.cat == VIDEO2_PROPERTY_TIME_WATERMARK ) {
 				config.osd.enable = *((int*)(info.task.msg.arg));
-				log_info("changed the osd switch = %d", config.osd.enable);
+				log_qcy(DEBUG_SERIOUS, "changed the osd switch = %d", config.osd.enable);
 				video2_config_video_set(CONFIG_VIDEO2_OSD,  &config.osd);
 			}
 			else if( info.task.msg.arg_in.cat == VIDEO2_PROPERTY_IMAGE_ROLLOVER ) {
@@ -879,7 +878,7 @@ static void task_control_ext(void)
 				else if( temp == 90 ) config.h264.h264_attr.rotation = RTS_AV_ROTATION_90R;
 				else if( temp == 270 ) config.h264.h264_attr.rotation = RTS_AV_ROTATION_90L;
 				else if( temp == 180 ) config.h264.h264_attr.rotation = RTS_AV_ROTATION_180;
-				log_info("changed the rotation = %d", config.h264.h264_attr.rotation );
+				log_qcy(DEBUG_SERIOUS, "changed the rotation = %d", config.h264.h264_attr.rotation );
 				video2_config_video_set(CONFIG_VIDEO2_H264,  &config.h264);
 			}
 			para_set = 1;
@@ -904,7 +903,7 @@ static void task_control_ext(void)
 			goto exit;
 			break;
 		default:
-			log_err("!!!!!!!unprocessed server status in task_control_ext = %d", info.status);
+			log_qcy(DEBUG_SERIOUS, "!!!!!!!unprocessed server status in task_control_ext = %d", info.status);
 			break;
 	}
 	usleep(1000);
@@ -945,7 +944,7 @@ static void task_control(void)
 		case STATUS_IDLE:
 			if( info.task.msg.arg_in.cat == VIDEO2_PROPERTY_QUALITY ) {
 				config.profile.quality = *((int*)(info.task.msg.arg));
-				log_info("changed the quality = %d", config.profile.quality);
+				log_qcy(DEBUG_SERIOUS, "changed the quality = %d", config.profile.quality);
 				video2_config_video_set(CONFIG_VIDEO2_PROFILE, &config.profile);
 			}
 			para_set = 1;
@@ -961,7 +960,7 @@ static void task_control(void)
 			ret = send_message( info.task.msg.receiver, &msg);
 			if( !ret ) goto exit;
 		default:
-			log_err("!!!!!!!unprocessed server status in task_control = %d", info.status);
+			log_qcy(DEBUG_SERIOUS, "!!!!!!!unprocessed server status in task_control = %d", info.status);
 			break;
 	}
 	usleep(1000);
@@ -1011,7 +1010,7 @@ static void task_start(void)
 			else info.status = STATUS_ERROR;
 			break;
 		default:
-			log_err("!!!!!!!unprocessed server status in task_start = %d", info.status);
+			log_qcy(DEBUG_SERIOUS, "!!!!!!!unprocessed server status in task_start = %d", info.status);
 			break;
 	}
 	usleep(1000);
@@ -1050,7 +1049,7 @@ static void task_stop(void)
 			ret = send_message(info.task.msg.receiver, &msg);
 			break;
 		default:
-			log_err("!!!!!!!unprocessed server status in task_stop = %d", info.status);
+			log_qcy(DEBUG_SERIOUS, "!!!!!!!unprocessed server status in task_stop = %d", info.status);
 			break;
 	}
 	usleep(1000);
@@ -1080,7 +1079,9 @@ static void task_default(void)
 					break;
 				}
 			}
-			if( !misc_get_bit( info.thread_exit, VIDEO2_INIT_CONDITION_REALTEK ) ) {
+			if( !misc_get_bit( info.thread_exit, VIDEO2_INIT_CONDITION_REALTEK )
+					&& ((time_get_now_stamp() - info.tick2 ) > MESSAGE_RESENT) ) {
+					info.tick2 = time_get_now_stamp();
 			    /********message body********/
 				msg_init(&msg);
 				msg.message = MSG_REALTEK_PROPERTY_GET;
@@ -1089,7 +1090,9 @@ static void task_default(void)
 				server_realtek_message(&msg);
 				/****************************/
 			}
-			if( !misc_get_bit( info.thread_exit, VIDEO2_INIT_CONDITION_MIIO_TIME ) ) {
+			if( !misc_get_bit( info.thread_exit, VIDEO2_INIT_CONDITION_MIIO_TIME )
+					&& ((time_get_now_stamp() - info.tick2 ) > MESSAGE_RESENT) ) {
+					info.tick2 = time_get_now_stamp();
 			    /********message body********/
 				msg_init(&msg);
 				msg.message = MSG_MIIO_PROPERTY_GET;
@@ -1100,8 +1103,6 @@ static void task_default(void)
 			}
 			if( misc_full_bit( info.thread_exit, VIDEO2_INIT_CONDITION_NUM ) )
 				info.status = STATUS_WAIT;
-			else
-				sleep(1);
 			break;
 		case STATUS_WAIT:
 			info.status = STATUS_SETUP;
@@ -1128,7 +1129,7 @@ static void task_default(void)
 			info.task.func = task_error;
 			break;
 		default:
-			log_err("!!!!!!!unprocessed server status in task_default = %d", info.status);
+			log_qcy(DEBUG_SERIOUS, "!!!!!!!unprocessed server status in task_default = %d", info.status);
 			break;
 		}
 	usleep(1000);
@@ -1154,8 +1155,7 @@ static void *server_func(void)
 	while( !info.exit ) {
 		info.task.func();
 		server_message_proc();
-		if( info.status!=STATUS_ERROR )
-			heart_beat_proc();
+		heart_beat_proc();
 	}
 	if( info.exit ) {
 		while( info.thread_start ) {
@@ -1169,7 +1169,7 @@ static void *server_func(void)
 		/***************************/
 	}
 	server_release();
-	log_info("-----------thread exit: server_video2-----------");
+	log_qcy(DEBUG_SERIOUS, "-----------thread exit: server_video2-----------");
 	pthread_exit(0);
 }
 
@@ -1185,11 +1185,11 @@ int server_video2_start(void)
 	int ret=-1;
 	ret = pthread_create(&info.id, NULL, server_func, NULL);
 	if(ret != 0) {
-		log_err("video2 server create error! ret = %d",ret);
+		log_qcy(DEBUG_SERIOUS, "video2 server create error! ret = %d",ret);
 		 return ret;
 	 }
 	else {
-		log_err("video2 server create successful!");
+		log_qcy(DEBUG_SERIOUS, "video2 server create successful!");
 		return 0;
 	}
 }
@@ -1198,20 +1198,21 @@ int server_video2_message(message_t *msg)
 {
 	int ret=0,ret1;
 	if( !message.init ) {
-		log_err("video2 server is not ready for message processing!");
+		log_qcy(DEBUG_SERIOUS, "video2 server is not ready for message processing!");
 		return -1;
 	}
 	ret = pthread_rwlock_wrlock(&message.lock);
 	if(ret)	{
-		log_err("add message lock fail, ret = %d\n", ret);
+		log_qcy(DEBUG_SERIOUS, "add message lock fail, ret = %d\n", ret);
 		return ret;
 	}
 	ret = msg_buffer_push(&message, msg);
-	log_info("push into the video2 message queue: sender=%d, message=%x, ret=%d", msg->sender, msg->message, ret);
+	log_qcy(DEBUG_SERIOUS, "push into the video2 message queue: sender=%d, message=%x, ret=%d, head=%d, tail=%d", msg->sender, msg->message, ret,
+			message.head, message.tail);
 	if( ret!=0 )
-		log_err("message push in video2 error =%d", ret);
+		log_qcy(DEBUG_SERIOUS, "message push in video2 error =%d", ret);
 	ret1 = pthread_rwlock_unlock(&message.lock);
 	if (ret1)
-		log_err("add message unlock fail, ret = %d\n", ret1);
+		log_qcy(DEBUG_SERIOUS, "add message unlock fail, ret = %d\n", ret1);
 	return ret;
 }

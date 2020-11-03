@@ -15,7 +15,6 @@
 #include <rtsavapi.h>
 #include <rtsvideo.h>
 #include <malloc.h>
-#include <dmalloc.h>
 //program header
 #include "../../tools/tools_interface.h"
 //server header
@@ -57,10 +56,10 @@ int video2_isp_get_attr(unsigned int id)
 	int ret;
 	ret = rts_av_get_isp_ctrl(id, &ctrl);
 	if (ret) {
-		log_err("get isp attr fail, ret = %d\n", ret);
+		log_qcy(DEBUG_SERIOUS, "get isp attr fail, ret = %d\n", ret);
 		return ret;
 	}
-	log_info("%s min = %d, max = %d, step = %d, default = %d, cur = %d\n",
+	log_qcy(DEBUG_SERIOUS, "%s min = %d, max = %d, step = %d, default = %d, cur = %d\n",
 			 ctrl.name, ctrl.minimum, ctrl.maximum,
 			 ctrl.step, ctrl.default_value, ctrl.current_value);
 	return 0;
@@ -72,27 +71,27 @@ int video2_isp_set_attr(unsigned int id, int value)
 	int ret;
 	ret = rts_av_get_isp_ctrl(id, &ctrl);
 	if (ret) {
-		log_err("get isp attr fail, ret = %d\n", ret);
+		log_qcy(DEBUG_SERIOUS, "get isp attr fail, ret = %d\n", ret);
 		return ret;
 	}
 	value = isp_get_valid_value(id, value, &ctrl);
-/*	log_info("%s min = %d, max = %d, step = %d, default = %d, cur = %d\n",
+/*	log_qcy(DEBUG_SERIOUS, "%s min = %d, max = %d, step = %d, default = %d, cur = %d\n",
 			 ctrl.name, ctrl.minimum, ctrl.maximum,
 			 ctrl.step, ctrl.default_value, ctrl.current_value);
 */
 	ctrl.current_value = value;
 	ret = rts_av_set_isp_ctrl(id, &ctrl);
 	if (ret) {
-		log_err("set isp attr fail, ret = %d\n", ret);
+		log_qcy(DEBUG_SERIOUS, "set isp attr fail, ret = %d\n", ret);
 		return ret;
 	}
 	ret = rts_av_get_isp_ctrl(id, &ctrl);
 	if (ret) {
-		log_err("get isp attr fail, ret = %d\n", ret);
+		log_qcy(DEBUG_SERIOUS, "get isp attr fail, ret = %d\n", ret);
 		return ret;
 	}
 /*
-	log_info("%s min = %d, max = %d, step = %d, default = %d, cur = %d\n",
+	log_qcy(DEBUG_SERIOUS, "%s min = %d, max = %d, step = %d, default = %d, cur = %d\n",
 			 ctrl.name, ctrl.minimum, ctrl.maximum,
 			 ctrl.step, ctrl.default_value, ctrl.current_value);
 */

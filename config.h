@@ -15,6 +15,7 @@
 #include <rtsavapi.h>
 #include <rtsvideo.h>
 #include "../../manager/global_interface.h"
+#include "../../manager/manager_interface.h"
 
 /*
  * define
@@ -36,15 +37,11 @@
 #define		AE_MANUAL_MODE_GAIN					6
 #define		AE_MANUAL_MODE_EXPOSURE_TIME 		7
 
-#define		OSD_FONT_PATH						"/opt/qcy/font/"
-#define		JPG_LIBRARY_PATH					"/mnt/nfs/media/"
-#define		MP4_LIBRARY_PATH					"/mnt/nfs/media/"
-
-#define 	CONFIG_VIDEO2_PROFILE_PATH			"/opt/qcy/config/video2_profile.config"
-#define 	CONFIG_VIDEO2_ISP_PATH				"/opt/qcy/config/video2_isp.config"
-#define 	CONFIG_VIDEO2_H264_PATH				"/opt/qcy/config/video2_h264.config"
-#define 	CONFIG_VIDEO2_OSD_PATH				"/opt/qcy/config/video2_osd.config"
-#define 	CONFIG_VIDEO2_3ACTRL_PATH			"/opt/qcy/config/video2_3actrl.config"
+#define 	CONFIG_VIDEO2_PROFILE_PATH			"config/video2_profile.config"
+#define 	CONFIG_VIDEO2_ISP_PATH				"config/video2_isp.config"
+#define 	CONFIG_VIDEO2_H264_PATH				"config/video2_h264.config"
+#define 	CONFIG_VIDEO2_OSD_PATH				"config/video2_osd.config"
+#define 	CONFIG_VIDEO2_3ACTRL_PATH			"config/video2_3actrl.config"
 
 /*
  * structure

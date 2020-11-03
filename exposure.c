@@ -15,7 +15,6 @@
 #include <rtsavapi.h>
 #include <rtsvideo.h>
 #include <malloc.h>
-#include <dmalloc.h>
 //program header
 #include "../../tools/tools_interface.h"
 //server header
@@ -47,7 +46,7 @@ static int exposure_set_manual_exposure_time(int et);
 
 static int exposure_set_auto_none(void)
 {
-	log_info("setup exposure mode to auto");
+	log_qcy(DEBUG_SERIOUS, "setup exposure mode to auto");
 	ae->mode = RTS_ISP_AE_AUTO;
 	rts_av_set_isp_ae(ae);
 	return 0;
@@ -120,7 +119,7 @@ int video2_exposure_proc(isp_ae_para_t *ctrl, int frame)
 	if( (frame - last_frame) > AE_FRAME_INTERVAL ) {
         ret = rts_av_query_isp_ae(&ae);
         if (ret) {
-        	log_err("query isp ae ctrl fail, ret = %d\n", ret);
+        	log_qcy(DEBUG_SERIOUS, "query isp ae ctrl fail, ret = %d\n", ret);
         	RTS_SAFE_RELEASE(ae, rts_av_release_isp_ae);
         	return 0;
         }
@@ -135,7 +134,7 @@ int video2_exposure_init(isp_ae_para_t *ctrl)
     last_frame = 0;
     ret = rts_av_query_isp_ae(&ae);
     if (ret) {
-    	log_err("query isp ae ctrl fail, ret = %d\n", ret);
+    	log_qcy(DEBUG_SERIOUS, "query isp ae ctrl fail, ret = %d\n", ret);
     	RTS_SAFE_RELEASE(ae, rts_av_release_isp_ae);
         return -1;
     }

@@ -30,7 +30,6 @@
 #include <rtscamkit.h>
 #include <getopt.h>
 #include <malloc.h>
-#include <dmalloc.h>
 //program header
 #include "../../tools/log.h"
 //server header
@@ -212,12 +211,12 @@ static int osd_set_osd2_timedate(osd2_text_info_t *text, int blkidx)
 	int ret = 0;
 	struct rts_video_osd2_block *block;
 	if ( !osd_run.osd_attr ) {
-		log_err("osd2 attribute isn't initialized!");
+		log_qcy(DEBUG_SERIOUS, "osd2 attribute isn't initialized!");
 		return -1;
 	}
 	ret = osd_get_picture_from_pattern(text);
 	if (ret < 0) {
-		log_err("%s, get blk pict fail\n", __func__);
+		log_qcy(DEBUG_SERIOUS, "%s, get blk pict fail\n", __func__);
 		return ret;
 	}
 	block = &osd_run.osd_attr->blocks[blkidx];
@@ -236,7 +235,7 @@ static int osd_set_osd2_timedate(osd2_text_info_t *text, int blkidx)
 	block->enable = 1;
 	ret = rts_av_set_osd2_single(osd_run.osd_attr, blkidx);
 	if (ret < 0)
-		log_err("set osd2 fail, ret = %d\n", ret);
+		log_qcy(DEBUG_SERIOUS, "set osd2 fail, ret = %d\n", ret);
 	return ret;
 }
 
@@ -247,12 +246,12 @@ static int osd_adjust_txt_picture(char *txt, unsigned char *dst, unsigned int le
 	unsigned int width;
 	int w = 0;
 	if ( !txt || !dst) {
-		log_err("empty pointer %s", __func__);
+		log_qcy(DEBUG_SERIOUS, "empty pointer %s", __func__);
 		return -1;
 	}
 	tmp = (unsigned char *)malloc(len);
 	if (!tmp) {
-		log_err("malloc error: %s", __func__);
+		log_qcy(DEBUG_SERIOUS, "malloc error: %s", __func__);
 		return -1;
 	}
 	memcpy(tmp, dst, len);
@@ -293,12 +292,12 @@ static int osd_set_osd2_text(void)
 	unsigned short ch = 0;
 	unsigned char *p;//[WIDTH_CH * HEIGHT];
 	if( osd_run.osd_attr == NULL ) {
-		log_err("%s osd attribute empty!",__func__);
+		log_qcy(DEBUG_SERIOUS, "%s osd attribute empty!",__func__);
 		return -1;
 	}
 	p = malloc( osd_run.pixel_size * osd_run.pixel_size );
 	if( p == NULL ) {
-		log_err("%s memory allocation failed!",__func__);
+		log_qcy(DEBUG_SERIOUS, "%s memory allocation failed!",__func__);
 		return -1;
 	}
 	for (i = 0; i < strlen(show_txt); i++) {
@@ -314,7 +313,7 @@ static int osd_set_osd2_text(void)
 	pbuf = (unsigned char *)malloc(len);
 	if (!pbuf) {
 		free(p);
-		log_err("%s memory allocation failed!",__func__);
+		log_qcy(DEBUG_SERIOUS, "%s memory allocation failed!",__func__);
 		return -1;
 	}
 	unsigned char *ptmp = pbuf;
@@ -337,7 +336,7 @@ static int osd_set_osd2_text(void)
 	}
 	ret = osd_adjust_txt_picture(show_txt, pbuf, len);
 	if( ret < 0 ) {
-		log_err("error from adjust txt picture!");
+		log_qcy(DEBUG_SERIOUS, "error from adjust txt picture!");
 		free(p);
 		free(pbuf);
 		return -1;
@@ -361,7 +360,7 @@ static int osd_set_osd2_text(void)
 	block->enable = 1;
 	ret = rts_av_set_osd2_single(osd_run.osd_attr, 3);
 	if (ret < 0) {
-		log_err("set osd2 fail, ret = %d\n", ret);
+		log_qcy(DEBUG_SERIOUS, "set osd2 fail, ret = %d\n", ret);
 	}
 	free(p);
 	free(pbuf);
@@ -380,11 +379,11 @@ static int osd_set_osd2_color_table(void)
 		return -1;
 	ret = rts_av_set_osd2_color_table(osd_run.osd_attr, RTS_OSD2_BLK_FMT_RGBA2222, val, r, g, b, a);
 	if ( ret!=0 ) {
-		log_err("set osd2 color table fail\n");
+		log_qcy(DEBUG_SERIOUS, "set osd2 color table fail\n");
 		return -1;
 	}
 	if (rts_av_get_osd2_color_table(osd_run.osd_attr, RTS_OSD2_BLK_FMT_RGBA2222, r, g, b, a) != val) {
-		log_err("get and compare osd2 color table fail\n");
+		log_qcy(DEBUG_SERIOUS, "get and compare osd2 color table fail\n");
 		return -1;
 	}
 	return 0;
@@ -444,14 +443,14 @@ int video2_osd_proc(video2_osd_config_t *ctrl, int frame)
 		text_date.cnt = strlen(now_date);
 		ret = osd_set_osd2_timedate(&text_date, 1);
 		if (ret < 0) {
-			log_err("%s, set osd2 attr fail\n", __func__);
+			log_qcy(DEBUG_SERIOUS, "%s, set osd2 attr fail\n", __func__);
 			video2_osd_release();
 			return -1;
 		}
 next:
 		ret = osd_set_osd2_timedate(&text_tm, 0);
 		if (ret < 0) {
-			log_err("%s, set osd2 attr fail\n", __func__);
+			log_qcy(DEBUG_SERIOUS, "%s, set osd2 attr fail\n", __func__);
 			video2_osd_release();
 			return -1;
 		}
@@ -477,24 +476,24 @@ int video2_osd_init(video2_osd_config_t *ctrl, int stream)
 	osd_run.offset = ctrl->time_offset;
 	//init freetype
 	FT_Init_FreeType(&osd_run.library);
-	snprintf(face_path, 32, "%s%s%s", OSD_FONT_PATH, ctrl->time_font_face, ".ttf");
+	snprintf(face_path, 32, "%sfont/%s%s", _config_.qcy_path, ctrl->time_font_face, ".ttf");
 	FT_New_Face(osd_run.library, face_path, 0, &osd_run.face);
 	FT_Set_Pixel_Sizes(osd_run.face, ctrl->time_pixel_size, 0);
 	osd_run.ipattern = (unsigned char *)calloc( ctrl->time_pixel_size * ctrl->time_pixel_size / 2, sizeof(patt) );
 	if (!osd_run.ipattern) {
-		log_err("%s calloc fail\n", __func__);
+		log_qcy(DEBUG_SERIOUS, "%s calloc fail\n", __func__);
 		video2_osd_release();
 		return -1;
 	}
 	osd_run.image2222 = (unsigned char *)calloc( 20 * ctrl->time_pixel_size * ctrl->time_pixel_size / 2, 1 );
 	if (!osd_run.image2222) {
-		log_err("%s calloc fail\n", __func__);
+		log_qcy(DEBUG_SERIOUS, "%s calloc fail\n", __func__);
 		video2_osd_release();
 		return -1;
 	}
 	osd_run.image8888 = (unsigned char *)calloc( 20 * 4 * ctrl->time_pixel_size * ctrl->time_pixel_size / 2, 1);
 	if (!osd_run.image8888) {
-		log_err("%s calloc fail\n", __func__);
+		log_qcy(DEBUG_SERIOUS, "%s calloc fail\n", __func__);
 		video2_osd_release();
 		return -1;
 	}
@@ -503,19 +502,19 @@ int video2_osd_init(video2_osd_config_t *ctrl, int stream)
 	}
 	ret = rts_av_query_osd2(osd_run.stream, &osd_run.osd_attr);
 	if (ret < 0) {
-		log_err("%s, query osd2 attr fail\n", __func__);
+		log_qcy(DEBUG_SERIOUS, "%s, query osd2 attr fail\n", __func__);
 		video2_osd_release();
 		return -1;
 	}
 	ret = osd_set_osd2_color_table();
 	if (ret < 0) {
-		log_err("%s, osd2 setup color table fail\n", __func__);
+		log_qcy(DEBUG_SERIOUS, "%s, osd2 setup color table fail\n", __func__);
 		video2_osd_release();
 		return -1;
 	}
 /*	ret = osd_set_osd2_text();
 	if (ret < 0) {
-		log_err("%s, osd2 setup text fail\n", __func__);
+		log_qcy(DEBUG_SERIOUS, "%s, osd2 setup text fail\n", __func__);
 		video2_osd_release();
 		return -1;
 	}
@@ -538,9 +537,11 @@ int video2_osd_release(void)
 		free( osd_run.image8888);
 		osd_run.image8888 = NULL;
 	}
+	if( osd_run.face != NULL)
+		FT_Done_Face(osd_run.face);
+    if( osd_run.library != NULL);
+    	FT_Done_FreeType(osd_run.library);
     RTS_SAFE_RELEASE(osd_run.osd_attr, rts_av_release_osd2);
-    FT_Done_Face(osd_run.face);
-    FT_Done_FreeType(osd_run.library);
     last_frame = 0;
 	return ret;
 }

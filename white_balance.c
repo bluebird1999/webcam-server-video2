@@ -15,7 +15,6 @@
 #include <rtsavapi.h>
 #include <rtsvideo.h>
 #include <malloc.h>
-#include <dmalloc.h>
 //program header
 #include "../../tools/log.h"
 //server header
@@ -42,7 +41,7 @@ static int white_balance_set_component(int r, int g, int b);
 
 static int white_balance_set_auto(int r_gain, int b_gain)
 {
-	log_info("input r_gain,b_gain(%d, %d):",
+	log_qcy(DEBUG_SERIOUS, "input r_gain,b_gain(%d, %d):",
 			 awb->_auto.adjustment.r_gain,
 			 awb->_auto.adjustment.b_gain);
 	awb->mode = RTS_ISP_AWB_AUTO;
@@ -54,7 +53,7 @@ static int white_balance_set_auto(int r_gain, int b_gain)
 
 static int white_balance_set_temperature(int temperature)
 {
-	log_info("input temperature(%d):", awb->_manual.temperature);
+	log_qcy(DEBUG_SERIOUS, "input temperature(%d):", awb->_manual.temperature);
 	awb->mode = RTS_ISP_AWB_TEMPERATURE;
 	awb->_manual.temperature = temperature;
 	rts_av_set_isp_awb(awb);
@@ -63,7 +62,7 @@ static int white_balance_set_temperature(int temperature)
 
 static int white_balance_set_component(int r, int g, int b)
 {
-	log_info("input component red,green,blue(%d,%d,%d):",
+	log_qcy(DEBUG_SERIOUS, "input component red,green,blue(%d,%d,%d):",
 			 awb->_component.red,
 			 awb->_component.green,
 			 awb->_component.blue);
@@ -85,14 +84,14 @@ int video2_white_balance_proc(isp_awb_para_t *ctrl, int frame)
 	if( (frame - last_frame) > AWB_FRAME_INTERVAL ) {
         ret = rts_av_query_isp_awb(&awb);
         if (ret) {
-        	log_err("query isp af ctrl fail, ret = %d\n", ret);
+        	log_qcy(DEBUG_SERIOUS, "query isp af ctrl fail, ret = %d\n", ret);
         	RTS_SAFE_RELEASE(awb, rts_av_release_isp_awb);
         	return 0;
         }
 
         ret = rts_av_get_isp_awb_ct_gain(RTS_ISP_CT_2800K, &ct_gain);
-		log_info("awb: rgain = %d bgain = %d",awb->_auto.adjustment.r_gain, awb->_auto.adjustment.b_gain);
-		log_info("awb: ct rgain = %d ct bgain = %d",ct_gain.r_gain, ct_gain.b_gain);
+		log_qcy(DEBUG_SERIOUS, "awb: rgain = %d bgain = %d",awb->_auto.adjustment.r_gain, awb->_auto.adjustment.b_gain);
+		log_qcy(DEBUG_SERIOUS, "awb: ct rgain = %d ct bgain = %d",ct_gain.r_gain, ct_gain.b_gain);
 		last_frame = frame;
 	}
 	return ret;
@@ -104,7 +103,7 @@ int video2_white_balance_init(isp_awb_para_t *ctrl)
     last_frame = 0;
 	ret = rts_av_query_isp_awb(&awb);
 	if (ret) {
-		log_err("query isp awb ctrl fail, ret = %d\n", ret);
+		log_qcy(DEBUG_SERIOUS, "query isp awb ctrl fail, ret = %d\n", ret);
 		RTS_SAFE_RELEASE(awb, rts_av_release_isp_awb);
 		return -1;
 	}
