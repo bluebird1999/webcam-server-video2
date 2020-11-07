@@ -315,7 +315,8 @@ static int *video2_osd_func(void *arg)
     pthread_detach(pthread_self());
     //init
     memcpy( &ctrl,(video2_osd_config_t*)arg, sizeof(video2_osd_config_t));
-    ret = video2_osd_init(&ctrl, stream.osd);
+    ret = video2_osd_init(&ctrl, stream.osd, config.profile.profile[config.profile.quality].video.width,
+    		config.profile.profile[config.profile.quality].video.height);
     if( ret != 0) {
     	log_qcy(DEBUG_SERIOUS, "osd init error!");
     	goto exit;
@@ -781,7 +782,7 @@ static int server_message_proc(void)
 			}
 			break;
 		default:
-			log_qcy(DEBUG_SERIOUS, "not processed message = %d", msg.message);
+			log_qcy(DEBUG_SERIOUS, "not processed message = %x", msg.message);
 			break;
 	}
 	msg_free(&msg);

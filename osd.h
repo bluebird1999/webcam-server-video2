@@ -38,12 +38,15 @@ typedef struct osd_run_t {
     int							rotate;
     int							alpha;
     int							pixel_size;
-    int							offset;
+    int							offset_x;
+    int							offset_y;
+    int							width;
+    int							height;
 } osd_run_t;
 /*
  * function
  */
-int video2_osd_init(video2_osd_config_t *ctrl, int stream);
+int video2_osd_init(video2_osd_config_t *ctrl, int stream, int width, int height);
 int video2_osd_release(void);
 int video2_osd_proc(video2_osd_config_t *ctrl, int frame);
 
