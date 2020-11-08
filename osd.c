@@ -419,8 +419,6 @@ int video2_osd_proc(video2_osd_config_t *ctrl, int frame)
 		tv_prev.tv_usec = tv.tv_usec;
 		now = time(NULL);
 		localtime_r(&now, &tm);
-		if( tm.tm_hour >= 20 ) osd_run.color = 0xFF;
-		else osd_run.color = 0x00;
 		sprintf(now_time, "%04d-%02d-%02d %02d-%02d-%02d", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
 				tm.tm_hour, tm.tm_min, tm.tm_sec);
 		text_tm.text = now_time;
@@ -474,8 +472,11 @@ int video2_osd_init(video2_osd_config_t *ctrl, int stream, int width, int height
 {
 	int ret=0;
 	char face_path[32];
+	time_t now;
+	struct tm tm = {0};
 	int i;
-
+	now = time(NULL);
+	localtime_r(&now, &tm);
     last_frame = 0;
 	osd_run.stream = stream;
 	osd_run.rotate = ctrl->time_rotate;
@@ -484,7 +485,7 @@ int video2_osd_init(video2_osd_config_t *ctrl, int stream, int width, int height
 	osd_run.height = height;
 	osd_run.color = ctrl->time_color;
 	if( width >= 1920 ) {
-		osd_run.pixel_size = 32;
+		osd_run.pixel_size = 36;
 		osd_run.offset_x = 12;
 		osd_run.offset_y = 10;
 	}
@@ -494,15 +495,17 @@ int video2_osd_init(video2_osd_config_t *ctrl, int stream, int width, int height
 		osd_run.offset_y = 6;
 	}
 	else if( width >= 864 ){
-		osd_run.pixel_size = 18;
+		osd_run.pixel_size = 16;
 		osd_run.offset_x = 6;
 		osd_run.offset_y = 4;
 	}
 	else {
 		osd_run.offset_x = 4;
 		osd_run.offset_y = 2;
-		osd_run.pixel_size = 16;
+		osd_run.pixel_size = 12;
 	}
+	if( tm.tm_hour >= 18 ) osd_run.color = 0xFF;
+	else osd_run.color = 0x00;
 	//init freetype
 	FT_Init_FreeType(&osd_run.library);
 	snprintf(face_path, 32, "%sfont/%s%s", _config_.qcy_path, ctrl->time_font_face, ".ttf");
