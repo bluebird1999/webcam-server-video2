@@ -997,6 +997,45 @@ static void task_start(void)
 	msg.result = 0;
 	/***************************/
 	switch(info.status){
+	case STATUS_NONE:
+		if( !misc_get_bit( info.thread_exit, VIDEO2_INIT_CONDITION_CONFIG ) ) {
+			ret = video2_config_video_read(&config);
+			if( !ret && misc_full_bit( config.status, CONFIG_VIDEO2_MODULE_NUM) ) {
+				misc_set_bit(&info.thread_exit, VIDEO2_INIT_CONDITION_CONFIG, 1);
+			}
+			else {
+				info.status = STATUS_ERROR;
+				break;
+			}
+		}
+		if( !misc_get_bit( info.thread_exit, VIDEO2_INIT_CONDITION_REALTEK )
+				&& ((time_get_now_stamp() - info.tick2 ) > MESSAGE_RESENT) ) {
+				info.tick2 = time_get_now_stamp();
+		    /********message body********/
+			msg_init(&msg);
+			msg.message = MSG_REALTEK_PROPERTY_GET;
+			msg.sender = msg.receiver = SERVER_VIDEO2;
+			msg.arg_in.cat = REALTEK_PROPERTY_AV_STATUS;
+			server_realtek_message(&msg);
+			/****************************/
+		}
+		if( !misc_get_bit( info.thread_exit, VIDEO2_INIT_CONDITION_MIIO_TIME )
+				&& ((time_get_now_stamp() - info.tick2 ) > MESSAGE_RESENT) ) {
+				info.tick2 = time_get_now_stamp();
+		    /********message body********/
+			msg_init(&msg);
+			msg.message = MSG_MIIO_PROPERTY_GET;
+			msg.sender = msg.receiver = SERVER_VIDEO2;
+			msg.arg_in.cat = MIIO_PROPERTY_TIME_SYNC;
+			server_miio_message(&msg);
+			/****************************/
+		}
+		if( misc_full_bit( info.thread_exit, VIDEO2_INIT_CONDITION_NUM ) )
+			info.status = STATUS_WAIT;
+		break;
+	case STATUS_WAIT:
+		info.status = STATUS_SETUP;
+		break;
 		case STATUS_RUN:
 			ret = send_message(info.task.msg.receiver, &msg);
 			goto exit;
