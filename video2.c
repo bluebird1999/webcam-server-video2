@@ -640,11 +640,18 @@ static int server_restart(void)
 	return ret;
 }
 
-static int server_release(void)
+static int server_release_1(void)
 {
 	int ret = 0;
 	stream_stop();
 	stream_destroy();
+	usleep(1000*10);
+	return ret;
+}
+
+static int server_release_2(void)
+{
+	int ret = 0;
 	msg_buffer_release(&message);
 	msg_free(&info.task.msg);
 	memset(&info,0,sizeof(server_info_t));
@@ -1158,9 +1165,12 @@ static void *server_func(void)
 		server_message_proc();
 		heart_beat_proc();
 	}
+	server_release_1();
 	if( info.exit ) {
 		while( info.thread_start ) {
+			log_qcy(DEBUG_INFO, "---------------locked video2---- %d", info.thread_start);
 		}
+		server_release_2();
 	    /********message body********/
 		message_t msg;
 		msg_init(&msg);
@@ -1169,7 +1179,6 @@ static void *server_func(void)
 		manager_message(&msg);
 		/***************************/
 	}
-	server_release();
 	log_qcy(DEBUG_SERIOUS, "-----------thread exit: server_video2-----------");
 	pthread_exit(0);
 }
