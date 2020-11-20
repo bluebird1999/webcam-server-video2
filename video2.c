@@ -652,9 +652,11 @@ static int server_release_1(void)
 static int server_release_2(void)
 {
 	int ret = 0;
+	int retain_exit = info.exit;
 	msg_buffer_release(&message);
 	msg_free(&info.task.msg);
 	memset(&info,0,sizeof(server_info_t));
+	info.exit = retain_exit;
 	memset(&config,0,sizeof(video2_config_t));
 	memset(&stream,0,sizeof(video2_stream_t));
 	return ret;
@@ -699,6 +701,11 @@ static int server_message_proc(void)
 			if( msg.sender == SERVER_MICLOUD) misc_set_bit(&info.status2, RUN_MODE_SEND_MICLOUD, 1);
 			if( msg.sender == SERVER_RECORDER) misc_set_bit(&info.status2, RUN_MODE_SAVE, 1);
 			if( info.status == STATUS_RUN ) {
+				ret = send_message(msg.receiver, &send_msg);
+				break;
+			}
+			else if( info.status <= STATUS_NONE) {
+				send_msg.result = -1;
 				ret = send_message(msg.receiver, &send_msg);
 				break;
 			}
@@ -997,51 +1004,19 @@ static void task_start(void)
 	msg.result = 0;
 	/***************************/
 	switch(info.status){
-	case STATUS_NONE:
-		if( !misc_get_bit( info.thread_exit, VIDEO2_INIT_CONDITION_CONFIG ) ) {
-			ret = video2_config_video_read(&config);
-			if( !ret && misc_full_bit( config.status, CONFIG_VIDEO2_MODULE_NUM) ) {
-				misc_set_bit(&info.thread_exit, VIDEO2_INIT_CONDITION_CONFIG, 1);
-			}
-			else {
-				info.status = STATUS_ERROR;
-				break;
-			}
-		}
-		if( !misc_get_bit( info.thread_exit, VIDEO2_INIT_CONDITION_REALTEK )
-				&& ((time_get_now_stamp() - info.tick2 ) > MESSAGE_RESENT) ) {
-				info.tick2 = time_get_now_stamp();
-		    /********message body********/
-			msg_init(&msg);
-			msg.message = MSG_REALTEK_PROPERTY_GET;
-			msg.sender = msg.receiver = SERVER_VIDEO2;
-			msg.arg_in.cat = REALTEK_PROPERTY_AV_STATUS;
-			server_realtek_message(&msg);
-			/****************************/
-		}
-		if( !misc_get_bit( info.thread_exit, VIDEO2_INIT_CONDITION_MIIO_TIME )
-				&& ((time_get_now_stamp() - info.tick2 ) > MESSAGE_RESENT) ) {
-				info.tick2 = time_get_now_stamp();
-		    /********message body********/
-			msg_init(&msg);
-			msg.message = MSG_MIIO_PROPERTY_GET;
-			msg.sender = msg.receiver = SERVER_VIDEO2;
-			msg.arg_in.cat = MIIO_PROPERTY_TIME_SYNC;
-			server_miio_message(&msg);
-			/****************************/
-		}
-		if( misc_full_bit( info.thread_exit, VIDEO2_INIT_CONDITION_NUM ) )
-			info.status = STATUS_WAIT;
-		break;
-	case STATUS_WAIT:
-		info.status = STATUS_SETUP;
-		break;
-		case STATUS_RUN:
-			ret = send_message(info.task.msg.receiver, &msg);
-			goto exit;
+		case STATUS_WAIT:
+			info.status = STATUS_SETUP;
+			break;
+		case STATUS_SETUP:
+			if( video2_init() == 0) info.status = STATUS_IDLE;
+			else info.status = STATUS_ERROR;
 			break;
 		case STATUS_IDLE:
 			info.status = STATUS_START;
+			break;
+		case STATUS_RUN:
+			ret = send_message(info.task.msg.receiver, &msg);
+			goto exit;
 			break;
 		case STATUS_START:
 			if( stream_start()==0 ) info.status = STATUS_RUN;
@@ -1051,10 +1026,6 @@ static void task_start(void)
 			msg.result = -1;
 			ret = send_message(info.task.msg.receiver, &msg);
 			goto exit;
-			break;
-		case STATUS_SETUP:
-			if( video2_init() == 0) info.status = STATUS_IDLE;
-			else info.status = STATUS_ERROR;
 			break;
 		default:
 			log_qcy(DEBUG_SERIOUS, "!!!!!!!unprocessed server status in task_start = %d", info.status);
@@ -1232,6 +1203,7 @@ static void *server_func(void)
 int server_video2_start(void)
 {
 	int ret=-1;
+	info.exit = 0;
 	ret = pthread_create(&info.id, NULL, server_func, NULL);
 	if(ret != 0) {
 		log_qcy(DEBUG_SERIOUS, "video2 server create error! ret = %d",ret);
