@@ -20,13 +20,15 @@
 /*
  * define
  */
-#define		CONFIG_VIDEO2_MODULE_NUM			5
+#define		CONFIG_VIDEO2_MODULE_NUM			7
 
 #define		CONFIG_VIDEO2_PROFILE				0
 #define		CONFIG_VIDEO2_ISP					1
 #define		CONFIG_VIDEO2_H264					2
 #define		CONFIG_VIDEO2_OSD					3
 #define		CONFIG_VIDEO2_3ACTRL				4
+#define		CONFIG_VIDEO2_JPG					5
+#define		CONFIG_VIDEO2_MD					6
 
 #define		AE_AUTO_MODE_NONE					0
 #define		AE_AUTO_MODE_TARGET_DELTA			1
@@ -42,6 +44,8 @@
 #define 	CONFIG_VIDEO2_H264_PATH				"config/video2_h264.config"
 #define 	CONFIG_VIDEO2_OSD_PATH				"config/video2_osd.config"
 #define 	CONFIG_VIDEO2_3ACTRL_PATH			"config/video2_3actrl.config"
+#define 	CONFIG_VIDEO2_JPG_PATH				"config/video2_jpg.config"
+#define 	CONFIG_VIDEO2_MD_PATH				"config/video2_md.config"
 
 /*
  * structure
@@ -144,11 +148,29 @@ typedef struct video2_osd_config_t {
 	int		label_flick_off;
 } video2_osd_config_t;
 
+typedef struct video2_jpg_config_t {
+	int		enable;
+	char	image_path[MAX_SYSTEM_STRING_SIZE];
+	struct rts_jpgenc_attr		jpg_ctrl;
+} video2_jpg_config_t;
+
 typedef struct video2_3actrl_config_t {
 	isp_awb_para_t	awb_para;
 	isp_af_para_t	af_para;
 	isp_ae_para_t	ae_para;
 } video2_3actrl_config_t;
+
+typedef struct video2_md_config_t {
+	int 	enable;
+	int		polling;
+	int		trig;
+	int		cloud_report;
+	int		alarm_interval;
+	int		sensitivity;
+	int		recording_length;
+	char	start[MAX_SYSTEM_STRING_SIZE];
+	char	end[MAX_SYSTEM_STRING_SIZE];
+} video2_md_config_t;
 
 typedef struct video2_config_t {
 	int							status;
@@ -157,6 +179,8 @@ typedef struct video2_config_t {
 	video2_h264_config_t			h264;
 	video2_osd_config_t 			osd;
 	video2_3actrl_config_t		a3ctrl;
+	video2_jpg_config_t			jpg;
+	video2_md_config_t			md;
 } video2_config_t;
 
 /*
@@ -164,6 +188,5 @@ typedef struct video2_config_t {
  */
 int video2_config_video_read(video2_config_t *vconf);
 int video2_config_video_set(int module, void *t);
-int video2_config_video_get_config_status(int module);
 
 #endif /* SERVER_VIDEO2_CONFIG_H_ */

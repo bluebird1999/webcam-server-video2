@@ -21,27 +21,29 @@
  */
 #define		THREAD_OSD				0
 #define 	THREAD_3ACTRL			1
+#define		THREAD_MD				2
+#define		THREAD_VIDEO			3
 
 #define		RUN_MODE_SAVE			0
-#define 	RUN_MODE_SEND_MISS		1
-#define		RUN_MODE_SEND_MICLOUD	2
+#define		RUN_MODE_MICLOUD		4
+#define		RUN_MODE_MOTION			8
+#define 	RUN_MODE_MISS			16
 
 #define		VIDEO2_INIT_CONDITION_NUM			3
 #define		VIDEO2_INIT_CONDITION_CONFIG		0
 #define		VIDEO2_INIT_CONDITION_MIIO_TIME		1
 #define		VIDEO2_INIT_CONDITION_REALTEK		2
 
+#define		VIDEO2_EXIT_CONDITION			( (1 << SERVER_RECORDER) )
 /*
  * structure
  */
-typedef struct video2_stream_t {
-	//channel
-	int isp;
-	int h264;
-	int osd;
-	//data
-	int	frame;
-} video2_stream_t;
+typedef struct video2_md_run_t {
+	int 				started;
+	scheduler_time_t  	scheduler;
+	int					mode;
+	char				changed;
+} video2_md_run_t;
 /*
  * function
  */

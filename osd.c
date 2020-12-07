@@ -41,7 +41,6 @@
  * static
  */
 //variable
-static int last_frame;
 static struct rts_video_osd2_attr 	*osd_attr;
 static osd_run_t					osd_run;
 static char cnum = 13;
@@ -422,60 +421,54 @@ int video2_osd_proc(video2_osd_config_t *ctrl, int frame)
 	int elapse = 0;
 	int flag = 0;
 	int i;
-	if( (frame - last_frame) > OSD_FRAME_INTERVAL ) {
-		gettimeofday(&tv, NULL);
-		elapse = (tv.tv_sec - tv_prev.tv_sec) * 1000
-				 + (tv.tv_usec - tv_prev.tv_usec) / 1000;
-		flag = abs(elapse) > 1.5 ? 1 : 0;
-		tv_prev.tv_sec = tv.tv_sec;
-		tv_prev.tv_usec = tv.tv_usec;
-		now = time(NULL);
-		localtime_r(&now, &tm);
-		sprintf(now_time, "%04d-%02d-%02d %02d:%02d:%02d", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
-				tm.tm_hour, tm.tm_min, tm.tm_sec);
-		text_tm.text = now_time;
-		text_tm.cnt = strlen(now_time);
-		if (osd_run.rotate) {
-			text_tm.x = osd_run.offset_x;
-			text_tm.y = osd_run.offset_y;
-		} else {
-			text_tm.x = osd_run.offset_x;
-			text_tm.y = osd_run.offset_y;
-		}
+	gettimeofday(&tv, NULL);
+	elapse = (tv.tv_sec - tv_prev.tv_sec) * 1000
+			 + (tv.tv_usec - tv_prev.tv_usec) / 1000;
+	flag = abs(elapse) > 1.5 ? 1 : 0;
+	tv_prev.tv_sec = tv.tv_sec;
+	tv_prev.tv_usec = tv.tv_usec;
+	now = time(NULL);
+	localtime_r(&now, &tm);
+	sprintf(now_time, "%04d-%02d-%02d %02d:%02d:%02d", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
+			tm.tm_hour, tm.tm_min, tm.tm_sec);
+	text_tm.text = now_time;
+	text_tm.cnt = strlen(now_time);
+	if (osd_run.rotate) {
+		text_tm.x = osd_run.offset_x;
+		text_tm.y = osd_run.offset_y;
+	} else {
+		text_tm.x = osd_run.offset_x;
+		text_tm.y = osd_run.offset_y;
+	}
 /*		if (tm.tm_sec && !flag)
-			goto next;
-		if (tm.tm_min && !flag)
-			goto next;
-		if (tm.tm_hour && !flag)
-			goto next;
-		sprintf(now_date, "%04d:%02d:%02d", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday);
-		text_date.text = now_date;
-		if (osd_run.rotate) {
-			text_date.x = 200;
-			text_date.y = 0;
-		} else {
-			text_date.x = 0;
-			text_date.y = 0;
-		}
-		text_date.cnt = strlen(now_date);
-		ret = osd_set_osd2_timedate(&text_date, 1);
-		if (ret < 0) {
-			log_qcy(DEBUG_SERIOUS, "%s, set osd2 attr fail\n", __func__);
-			video2_osd_release();
-			return -1;
-		}
+		goto next;
+	if (tm.tm_min && !flag)
+		goto next;
+	if (tm.tm_hour && !flag)
+		goto next;
+	sprintf(now_date, "%04d:%02d:%02d", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday);
+	text_date.text = now_date;
+	if (osd_run.rotate) {
+		text_date.x = 200;
+		text_date.y = 0;
+	} else {
+		text_date.x = 0;
+		text_date.y = 0;
+	}
+	text_date.cnt = strlen(now_date);
+	ret = osd_set_osd2_timedate(&text_date, 1);
+	if (ret < 0) {
+		log_qcy(DEBUG_SERIOUS, "%s, set osd2 attr fail\n", __func__);
+		video2_osd_release();
+		return -1;
+	}
 next:
 */
-		ret = osd_set_osd2_timedate(&text_tm, 0);
-		if (ret < 0) {
-			log_qcy(DEBUG_SERIOUS, "%s, set osd2 attr fail\n", __func__);
-			video2_osd_release();
-			return -1;
-		}
-		last_frame = frame;
-	}
-	else {
-		usleep(1000);
+	ret = osd_set_osd2_timedate(&text_tm, 0);
+	if (ret < 0) {
+		log_qcy(DEBUG_SERIOUS, "%s, set osd2 attr fail\n", __func__);
+		video2_osd_release();
+		return -1;
 	}
 	return ret;
 }
@@ -489,7 +482,6 @@ int video2_osd_init(video2_osd_config_t *ctrl, int stream, int width, int height
 	int i;
 	now = time(NULL);
 	localtime_r(&now, &tm);
-    last_frame = 0;
 	osd_run.stream = stream;
 	osd_run.rotate = ctrl->time_rotate;
 	osd_run.alpha = ctrl->time_alpha;
@@ -585,7 +577,6 @@ int video2_osd_release(void)
 	FT_Done_Face(osd_run.face);
    	FT_Done_FreeType(osd_run.library);
     RTS_SAFE_RELEASE(osd_run.osd_attr, rts_av_release_osd2);
-    last_frame = 0;
 	return ret;
 }
 

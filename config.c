@@ -24,7 +24,6 @@
  * static
  */
 //variable
-static pthread_rwlock_t				lock;
 static int							dirty;
 static video2_config_t				video2_config;
 
@@ -170,7 +169,25 @@ static config_map_t video2_config_3actrl_map[] = {
     {NULL,},
 };
 
+static config_map_t video2_config_jpg_map[] = {
+    {"enable", 		&(video2_config.jpg.enable), 				cfg_u32, 1,0,0,1,},
+    {"rotation",	&(video2_config.jpg.jpg_ctrl.rotation),		cfg_u32, 0,0,0,4,},
+	{"image_path",	&(video2_config.jpg.image_path), 			cfg_string, "0",0,0,32,},
+    {NULL,},
+};
 
+static config_map_t video2_config_md_map[] = {
+    {"enable", 			&(video2_config.md.enable), 				cfg_u32, 1,0,0,1,},
+	{"polling",			&(video2_config.md.polling),				cfg_u32, 1,0,0,1,},
+	{"trig",			&(video2_config.md.trig),					cfg_u32, 1,0,0,1,},
+    {"cloud_report",	&(video2_config.md.cloud_report),			cfg_u32, 1,0,0,1,},
+    {"alarm_interval", 	&(video2_config.md.alarm_interval), 		cfg_u32, 1,0,1,30,},
+    {"sensitivity",		&(video2_config.md.sensitivity),			cfg_u32, 30,0,0,100,},
+	{"recording_length",&(video2_config.md.recording_length),		cfg_u32, 6,0,0,30,},
+    {"start", 			&(video2_config.md.start), 					cfg_string, '20:00-23:00',0, 0,32,},
+    {"end",				&(video2_config.md.end),					cfg_string, '20:00-23:00',0, 0,32,},
+    {NULL,},
+};
 //function
 static int video2_config_save(void);
 
@@ -190,11 +207,6 @@ static int video2_config_save(void)
 	int ret = 0;
 	message_t msg;
 	char fname[MAX_SYSTEM_STRING_SIZE*2];
-	ret = pthread_rwlock_wrlock(&lock);
-	if(ret)	{
-		log_qcy(DEBUG_SERIOUS, "add lock fail, ret = %d\n", ret);
-		return ret;
-	}
 	if( misc_get_bit(dirty, CONFIG_VIDEO2_PROFILE) ) {
 		memset(fname,0,sizeof(fname));
 		sprintf(fname,"%s%s",_config_.qcy_path, CONFIG_VIDEO2_PROFILE_PATH);
@@ -230,6 +242,20 @@ static int video2_config_save(void)
 		if(!ret)
 			misc_set_bit(&dirty, CONFIG_VIDEO2_3ACTRL, 0);
 	}
+	else if( misc_get_bit(dirty, CONFIG_VIDEO2_JPG) ) {
+		memset(fname,0,sizeof(fname));
+		sprintf(fname,"%s%s",_config_.qcy_path, CONFIG_VIDEO2_JPG_PATH);
+		ret = write_config_file(&video2_config_jpg_map, fname);
+		if(!ret)
+			misc_set_bit(&dirty, CONFIG_VIDEO2_JPG, 0);
+	}
+	else if( misc_get_bit(dirty, CONFIG_VIDEO2_MD) ) {
+		memset(fname,0,sizeof(fname));
+		sprintf(fname,"%s%s",_config_.qcy_path, CONFIG_VIDEO2_MD_PATH);
+		ret = write_config_file(&video2_config_md_map, fname);
+		if(!ret)
+			misc_set_bit(&dirty, CONFIG_VIDEO2_MD, 0);
+	}
 	if( !dirty ) {
 		/********message body********/
 		msg_init(&msg);
@@ -237,12 +263,8 @@ static int video2_config_save(void)
 		msg.arg_in.handler = video2_config_save;
 		msg.sender = msg.receiver = SERVER_VIDEO2;
 		/****************************/
-		manager_message(&msg);
+		manager_common_send_message(SERVER_MANAGER, &msg);
 	}
-	ret = pthread_rwlock_unlock(&lock);
-	if (ret)
-		log_qcy(DEBUG_SERIOUS, "add unlock fail, ret = %d\n", ret);
-
 	return ret;
 }
 
@@ -250,12 +272,6 @@ int video2_config_video_read(video2_config_t *vconf)
 {
 	int ret,ret1=0;
 	char fname[MAX_SYSTEM_STRING_SIZE*2];
-	pthread_rwlock_init(&lock, NULL);
-	ret = pthread_rwlock_wrlock(&lock);
-	if(ret)	{
-		log_qcy(DEBUG_SERIOUS, "add lock fail, ret = %d\n", ret);
-		return ret;
-	}
 	memset(fname,0,sizeof(fname));
 	sprintf(fname,"%s%s",_config_.qcy_path, CONFIG_VIDEO2_PROFILE_PATH);
 	ret = read_config_file(&video2_config_profile_map, fname);
@@ -296,9 +312,21 @@ int video2_config_video_read(video2_config_t *vconf)
 	else
 		misc_set_bit(&video2_config.status, CONFIG_VIDEO2_3ACTRL,0);
 	ret1 |= ret;
-	ret = pthread_rwlock_unlock(&lock);
-	if (ret)
-		log_qcy(DEBUG_SERIOUS, "add unlock fail, ret = %d\n", ret);
+	memset(fname,0,sizeof(fname));
+	sprintf(fname,"%s%s",_config_.qcy_path, CONFIG_VIDEO2_JPG_PATH);
+	ret = read_config_file(&video2_config_jpg_map, fname);
+	if(!ret)
+		misc_set_bit(&video2_config.status, CONFIG_VIDEO2_JPG,1);
+	else
+		misc_set_bit(&video2_config.status, CONFIG_VIDEO2_JPG,0);
+	ret1 |= ret;
+	memset(fname,0,sizeof(fname));
+	sprintf(fname,"%s%s",_config_.qcy_path, CONFIG_VIDEO2_MD_PATH);
+	ret = read_config_file(&video2_config_md_map, fname);
+	if(!ret)
+		misc_set_bit(&video2_config.status, CONFIG_VIDEO2_MD,1);
+	else
+		misc_set_bit(&video2_config.status, CONFIG_VIDEO2_MD,0);
 	ret1 |= ret;
 	memcpy(vconf,&video2_config,sizeof(video2_config_t));
 	return ret1;
@@ -307,11 +335,6 @@ int video2_config_video_read(video2_config_t *vconf)
 int video2_config_video_set(int module, void* arg)
 {
 	int ret = 0;
-	ret = pthread_rwlock_wrlock(&lock);
-	if(ret)	{
-		log_qcy(DEBUG_SERIOUS, "add lock fail, ret = %d\n", ret);
-		return ret;
-	}
 	if(dirty==0) {
 		message_t msg;
 	    /********message body********/
@@ -323,7 +346,7 @@ int video2_config_video_set(int module, void* arg)
 		msg.arg_in.duck = 0;
 		msg.arg_in.handler = &video2_config_save;
 		/****************************/
-		manager_message(&msg);
+		manager_common_send_message(SERVER_MANAGER, &msg);
 	}
 	misc_set_bit(&dirty, module, 1);
 	if( module == CONFIG_VIDEO2_PROFILE) {
@@ -341,26 +364,11 @@ int video2_config_video_set(int module, void* arg)
 	else if ( module == CONFIG_VIDEO2_3ACTRL ) {
 		memcpy( (video2_3actrl_config_t*)(&video2_config.a3ctrl), arg, sizeof(video2_3actrl_config_t));
 	}
-	ret = pthread_rwlock_unlock(&lock);
-	if (ret)
-		log_qcy(DEBUG_SERIOUS, "add unlock fail, ret = %d\n", ret);
-	return ret;
-}
-
-int video2_config_video_get_config_status(int module)
-{
-	int st,ret=0;
-	ret = pthread_rwlock_wrlock(&lock);
-	if(ret)	{
-		log_qcy(DEBUG_SERIOUS, "add lock fail, ret = %d\n", ret);
-		return ret;
+	else if ( module == CONFIG_VIDEO2_JPG ) {
+		memcpy( (video2_jpg_config_t*)(&video2_config.jpg), arg, sizeof(video2_jpg_config_t));
 	}
-	if(module==-1)
-		st = video2_config.status;
-	else
-		st = misc_get_bit(video2_config.status, module);
-	ret = pthread_rwlock_unlock(&lock);
-	if (ret)
-		log_qcy(DEBUG_SERIOUS, "add unlock fail, ret = %d\n", ret);
-	return st;
+	else if ( module == CONFIG_VIDEO2_MD ) {
+		memcpy( (video2_md_config_t*)(&video2_config.md), arg, sizeof(video2_md_config_t));
+	}
+	return ret;
 }
