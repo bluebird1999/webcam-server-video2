@@ -467,7 +467,7 @@ next:
 	ret = osd_set_osd2_timedate(&text_tm, 0);
 	if (ret < 0) {
 		log_qcy(DEBUG_SERIOUS, "%s, set osd2 attr fail\n", __func__);
-		video2_osd_release();
+//		video2_osd_release();
 		return -1;
 	}
 	return ret;
@@ -489,7 +489,7 @@ int video2_osd_init(video2_osd_config_t *ctrl, int stream, int width, int height
 	osd_run.height = height;
 	osd_run.color = ctrl->time_color;
 	if( width >= 1920 ) {
-		osd_run.pixel_size = 40;
+		osd_run.pixel_size = 48;
 		osd_run.offset_x = 12;
 		osd_run.offset_y = 10;
 	}
@@ -504,9 +504,9 @@ int video2_osd_init(video2_osd_config_t *ctrl, int stream, int width, int height
 		osd_run.offset_y = 4;
 	}
 	else {
-		osd_run.offset_x = 4;
-		osd_run.offset_y = 2;
 		osd_run.pixel_size = 16;
+		osd_run.offset_x = 4;
+		osd_run.offset_y = 4;
 	}
 	if( tm.tm_hour >= 18 ) osd_run.color = 0xFF;
 	else osd_run.color = 0x00;
