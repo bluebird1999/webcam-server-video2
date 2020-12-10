@@ -37,6 +37,7 @@
 #include "isp.h"
 #include "config.h"
 #include "md.h"
+#include "jpeg.h"
 
 /*
  * static
@@ -220,6 +221,54 @@ static int video2_set_property(message_t *msg)
 	return ret;
 }
 
+static void *video2_jpeg_func(void *arg)
+{
+	int ret=0;
+    signal(SIGINT, server_thread_termination);
+    signal(SIGTERM, server_thread_termination);
+    misc_set_thread_name("server_video2_thumb");
+    pthread_detach(pthread_self());
+    //init
+    ret = video2_jpeg_thumbnail((char*)arg, 270, 180);
+    //release
+    if( arg )
+    	free(arg);
+    log_qcy(DEBUG_INFO, "-----------thread exit: video2_jpeg_thumbnail-----------");
+    pthread_exit(0);
+}
+
+static int video2_thumbnail(message_t *msg)
+{
+    unsigned char* fname = NULL;
+    pthread_t tid;
+    int ret = 0, size = 0;
+    char file[MAX_SYSTEM_STRING_SIZE*4];
+    if( msg->arg_in.cat == RECORDER_TYPE_MOTION_DETECTION ) {
+    	memset(file, 0, sizeof(file));
+    	sprintf(file, "%smotion.jpg", config.jpg.image_path);
+    	ret = rename(msg->arg, file);
+		if(ret) {
+			log_qcy(DEBUG_WARNING, "rename motion snapshot file %s to %s failed.\n", msg->arg, file);
+		}
+    }
+    else {
+		fname = malloc( msg->arg_size );
+		if( fname == NULL ) {
+			log_qcy(DEBUG_WARNING, "jpeg thread memory allocation failed! size = %d",size);
+			return -1;
+		}
+		memset(fname, 0, msg->arg_size);
+		strcpy( fname, (char*)msg->arg );
+		ret = pthread_create(&tid, NULL, video2_jpeg_func, fname);
+		if(ret != 0) {
+			log_qcy(DEBUG_WARNING, "jpeg thread create error! ret = %d",ret);
+			if( fname )
+				free( fname );
+		}
+    }
+	return ret;
+}
+
 static void video2_mjpeg_func(void *priv, struct rts_av_profile *profile, struct rts_av_buffer *buffer)
 {
     FILE *pfile = NULL;
@@ -236,16 +285,22 @@ static void video2_mjpeg_func(void *priv, struct rts_av_profile *profile, struct
 static int video2_snapshot(message_t *msg)
 {
 	struct rts_av_callback cb;
-    static char filename[2*MAX_SYSTEM_STRING_SIZE];
+    static char filename[4*MAX_SYSTEM_STRING_SIZE];
 	int ret = 0;
-	memset(filename, 0, sizeof(filename));
-	strcpy(filename, (char*)msg->arg);
 	cb.func = video2_mjpeg_func;
 	cb.start = msg->arg_in.cat;
 	cb.times = msg->arg_in.dog;
 	cb.interval = msg->arg_in.duck;
 	cb.type = msg->arg_in.tiger;
-	cb.priv = (void*)filename;
+	if( msg->arg_in.chick == RECORDER_TYPE_MOTION_DETECTION ) {
+		memset( filename, 0, sizeof(filename) );
+		sprintf( filename, "%smotion.jpg", config.jpg.image_path );
+	}
+	else {
+		memset(filename, 0, sizeof(filename));
+		strcpy(filename, (char*)msg->arg);
+		cb.priv = (void*)filename;
+	}
 	ret = rts_av_set_callback(stream.jpg, &cb, 0);
 	if (ret) {
 		log_qcy(DEBUG_SERIOUS, "set mjpeg callback fail, ret = %d\n", ret);
@@ -481,6 +536,10 @@ static int *video2_main_func(void* arg)
     			continue;
     		}
     		memcpy(packet->data, buffer->vm_addr, buffer->bytesused);
+    		if( (stream.realtek_stamp == 0) && (stream.unix_stamp == 0) ) {
+    			stream.realtek_stamp = buffer->timestamp;
+    			stream.unix_stamp = time_get_now_stamp();
+    		}
     		write_video2_info( buffer, &packet->info);
     		rts_av_put_buffer(buffer);
     		for(i=0;i<MAX_RECORDER_JOB;i++) {
@@ -643,6 +702,9 @@ static int stream_stop(void)
 		ret = rts_av_disable_chn(stream.h264);
 	if(stream.isp!=-1)
 		ret = rts_av_disable_chn(stream.isp);
+	stream.frame = 0;
+	stream.realtek_stamp = 0;
+	stream.unix_stamp = 0;
 	return ret;
 }
 
@@ -723,7 +785,8 @@ static void write_video2_info(struct rts_av_buffer *data, av_data_info_t *info)
 {
 	info->flag = data->flags;
 	info->frame_index = data->frame_idx;
-	info->timestamp = data->timestamp / 1000;
+//	info->timestamp = data->timestamp / 1000;
+	info->timestamp = ( ( data->timestamp - stream.realtek_stamp ) / 1000) + stream.unix_stamp * 1000;
 	info->fps = config.profile.profile[config.profile.quality].video.denominator;
 	info->width = config.profile.profile[config.profile.quality].video.width;
 	info->height = config.profile.profile[config.profile.quality].video.height;
@@ -911,6 +974,9 @@ static int server_message_proc(void)
 			break;
 		case MSG_VIDE02_SNAPSHOT:
 			video2_snapshot(&msg);
+			break;
+		case MSG_VIDE02_SNAPSHOT_THUMB:
+			video2_thumbnail(&msg);
 			break;
 		case MSG_MANAGER_DUMMY:
 			break;

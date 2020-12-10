@@ -16,7 +16,7 @@
 /*
  * define
  */
-#define		SERVER_VIDEO2_VERSION_STRING		"alpha-4.1"
+#define		SERVER_VIDEO2_VERSION_STRING		"alpha-4.2"
 
 #define		MSG_VIDEO2_BASE						(SERVER_VIDEO2<<16)
 #define		MSG_VIDEO2_SIGINT					(MSG_VIDEO2_BASE | 0x0000)
@@ -36,6 +36,8 @@
 #define		MSG_VIDEO2_PROPERTY_GET_ACK			(MSG_VIDEO2_BASE | 0x1015)
 #define		MSG_VIDE02_SNAPSHOT					(MSG_VIDEO2_BASE | 0x0020)
 #define		MSG_VIDEO2_SNAPSHOT_ACK				(MSG_VIDEO2_BASE | 0x1020)
+#define		MSG_VIDE02_SNAPSHOT_THUMB			(MSG_VIDEO2_BASE | 0x0021)
+#define		MSG_VIDEO2_SNAPSHOT_THUMB_ACK		(MSG_VIDEO2_BASE | 0x1021)
 
 //video2 control command from
 //standard camera
