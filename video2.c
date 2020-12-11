@@ -930,19 +930,16 @@ static int server_message_proc(void)
 	msg_deep_copy(&info.task.msg, &msg);
 	switch(msg.message) {
 		case MSG_VIDEO2_START:
-			if( msg.sender == SERVER_MISS) misc_set_bit(&info.status2, (RUN_MODE_MISS + msg.arg_in.wolf), 1);
-			if( msg.sender == SERVER_MICLOUD) misc_set_bit(&info.status2, RUN_MODE_MICLOUD, 1);
-			if( msg.sender == SERVER_RECORDER) misc_set_bit(&info.status2, (RUN_MODE_SAVE + msg.arg_in.wolf), 1);
-			if( msg.sender == SERVER_VIDEO) misc_set_bit(&info.status2, RUN_MODE_MOTION, 1);
 			info.task.func = task_start;
 			info.task.start = info.status;
 			info.msg_lock = 1;
 			break;
 		case MSG_VIDEO2_STOP:
-			if( msg.sender == SERVER_MISS) misc_set_bit(&info.status2, (RUN_MODE_MISS + msg.arg_in.wolf), 0);
-			if( msg.sender == SERVER_MICLOUD) misc_set_bit(&info.status2, RUN_MODE_MICLOUD, 0);
-			if( msg.sender == SERVER_RECORDER) misc_set_bit(&info.status2, (RUN_MODE_SAVE + msg.arg_in.wolf), 0);
-			if( msg.sender == SERVER_VIDEO) misc_set_bit(&info.status2, RUN_MODE_MOTION, 0);
+			info.task.msg.arg_in.cat = info.status2;
+			if( msg.sender == SERVER_MISS) misc_set_bit(&info.task.msg.arg_in.cat, (RUN_MODE_MISS + msg.arg_in.wolf), 0);
+			if( msg.sender == SERVER_MICLOUD) misc_set_bit(&info.task.msg.arg_in.cat, RUN_MODE_MICLOUD, 0);
+			if( msg.sender == SERVER_RECORDER) misc_set_bit(&info.task.msg.arg_in.cat, (RUN_MODE_SAVE + msg.arg_in.wolf), 0);
+			if( msg.sender == SERVER_VIDEO) misc_set_bit(&info.task.msg.arg_in.cat, RUN_MODE_MOTION, 0);
 			info.task.func = task_stop;
 			info.task.start = info.status;
 			info.msg_lock = 1;
@@ -1018,7 +1015,7 @@ static int server_none(void)
 		msg.message = MSG_REALTEK_PROPERTY_GET;
 		msg.sender = msg.receiver = SERVER_VIDEO2;
 		msg.arg_in.cat = REALTEK_PROPERTY_AV_STATUS;
-		manager_common_send_message(SERVER_REALTEK,    &msg);
+		manager_common_send_message(SERVER_REALTEK,&msg);
 		/****************************/
 	}
 	if( misc_full_bit( info.init_status, VIDEO2_INIT_CONDITION_NUM ) )
@@ -1112,6 +1109,12 @@ static void task_start(void)
 	}
 	return;
 exit:
+	if( msg.result == 0 ) {
+		if( info.task.msg.sender == SERVER_MISS) misc_set_bit(&info.status2, (RUN_MODE_MISS + info.task.msg.arg_in.wolf), 1);
+		if( info.task.msg.sender == SERVER_MICLOUD) misc_set_bit(&info.status2, RUN_MODE_MICLOUD, 1);
+		if( info.task.msg.sender == SERVER_RECORDER) misc_set_bit(&info.status2, (RUN_MODE_SAVE + info.task.msg.arg_in.wolf), 1);
+		if( info.task.msg.sender == SERVER_VIDEO) misc_set_bit(&info.status2, RUN_MODE_MOTION, 1);
+	}
 	manager_common_send_message(info.task.msg.receiver, &msg);
 	msg_free(&info.task.msg);
 	info.task.func = &task_default;
@@ -1140,7 +1143,7 @@ static void task_stop(void)
 			break;
 		case STATUS_START:
 		case STATUS_RUN:
-			if( info.status2 > 0 ) {
+			if( info.task.msg.arg_in.cat > 0 ) {
 				goto exit;
 				break;
 			}
@@ -1157,6 +1160,12 @@ static void task_stop(void)
 	}
 	return;
 exit:
+	if( msg.result == 0 ) {
+		if( info.task.msg.sender == SERVER_MISS) misc_set_bit(&info.status2, (RUN_MODE_MISS + info.task.msg.arg_in.wolf), 0);
+		if( info.task.msg.sender == SERVER_MICLOUD) misc_set_bit(&info.status2, RUN_MODE_MICLOUD, 0);
+		if( info.task.msg.sender == SERVER_RECORDER) misc_set_bit(&info.status2, (RUN_MODE_SAVE + info.task.msg.arg_in.wolf), 0);
+		if( info.task.msg.sender == SERVER_VIDEO) misc_set_bit(&info.status2, RUN_MODE_MOTION, 0);
+	}
 	manager_common_send_message(info.task.msg.receiver, &msg);
 	msg_free(&info.task.msg);
 	info.task.func = &task_default;
