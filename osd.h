@@ -48,7 +48,7 @@ typedef struct osd_run_t {
  */
 int video2_osd_init(video2_osd_config_t *ctrl, int stream, int width, int height);
 int video2_osd_release(void);
-int video2_osd_proc(video2_osd_config_t *ctrl, int frame);
+int video2_osd_proc(video2_osd_config_t *ctrl, int frame, int enable);
 
 
 #endif /* SERVER_VIDEO_OSD_H_ */

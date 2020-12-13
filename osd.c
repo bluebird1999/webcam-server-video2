@@ -408,25 +408,21 @@ static int osd_set_osd2_color_table(void)
 /*
  * interface
  */
-int video2_osd_proc(video2_osd_config_t *ctrl, int frame)
+int video2_osd_proc(video2_osd_config_t *ctrl, int frame, int enable)
 {
-	char now_time[9] = "00:00:00";
-	char now_date[11] = "2017:01:01";
+	char now_time[20] = "00:00:00";
 	int ret;
 	osd2_text_info_t text_tm;
 	time_t now;
 	struct tm tm = {0};
-	static struct timeval tv_prev;
-	static struct timeval tv;
-	int elapse = 0;
-	int flag = 0;
 	int i;
-	gettimeofday(&tv, NULL);
-	elapse = (tv.tv_sec - tv_prev.tv_sec) * 1000
-			 + (tv.tv_usec - tv_prev.tv_usec) / 1000;
-	flag = abs(elapse) > 1.5 ? 1 : 0;
-	tv_prev.tv_sec = tv.tv_sec;
-	tv_prev.tv_usec = tv.tv_usec;
+	if (enable) {
+		osd_run.osd_attr->blocks[0].enable = 1;
+	}
+	else {
+		osd_run.osd_attr->blocks[0].enable = 0;
+		return 0;
+	}
 	now = time(NULL);
 	localtime_r(&now, &tm);
 	sprintf(now_time, "%04d-%02d-%02d %02d:%02d:%02d", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
@@ -440,34 +436,9 @@ int video2_osd_proc(video2_osd_config_t *ctrl, int frame)
 		text_tm.x = osd_run.offset_x;
 		text_tm.y = osd_run.offset_y;
 	}
-/*		if (tm.tm_sec && !flag)
-		goto next;
-	if (tm.tm_min && !flag)
-		goto next;
-	if (tm.tm_hour && !flag)
-		goto next;
-	sprintf(now_date, "%04d:%02d:%02d", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday);
-	text_date.text = now_date;
-	if (osd_run.rotate) {
-		text_date.x = 200;
-		text_date.y = 0;
-	} else {
-		text_date.x = 0;
-		text_date.y = 0;
-	}
-	text_date.cnt = strlen(now_date);
-	ret = osd_set_osd2_timedate(&text_date, 1);
-	if (ret < 0) {
-		log_qcy(DEBUG_SERIOUS, "%s, set osd2 attr fail\n", __func__);
-		video2_osd_release();
-		return -1;
-	}
-next:
-*/
 	ret = osd_set_osd2_timedate(&text_tm, 0);
 	if (ret < 0) {
 		log_qcy(DEBUG_SERIOUS, "%s, set osd2 attr fail\n", __func__);
-//		video2_osd_release();
 		return -1;
 	}
 	return ret;
@@ -542,20 +513,6 @@ int video2_osd_init(video2_osd_config_t *ctrl, int stream, int width, int height
 		video2_osd_release();
 		return -1;
 	}
-/*	ret = osd_set_osd2_color_table();
-	if (ret < 0) {
-		log_qcy(DEBUG_SERIOUS, "%s, osd2 setup color table fail\n", __func__);
-		video2_osd_release();
-		return -1;
-	}
-*/
-/*	ret = osd_set_osd2_text();
-	if (ret < 0) {
-		log_qcy(DEBUG_SERIOUS, "%s, osd2 setup text fail\n", __func__);
-		video2_osd_release();
-		return -1;
-	}
-*/
 	return ret;
 }
 
@@ -579,5 +536,3 @@ int video2_osd_release(void)
     RTS_SAFE_RELEASE(osd_run.osd_attr, rts_av_release_osd2);
 	return ret;
 }
-
-

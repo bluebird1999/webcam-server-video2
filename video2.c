@@ -401,6 +401,7 @@ static int *video2_md_func(void *arg)
     video2_md_init( &ctrl, config.profile.profile[config.profile.quality].video.width,
     		config.profile.profile[config.profile.quality].video.height);
     server_set_status(STATUS_TYPE_THREAD_START, THREAD_MD, 1 );
+    manager_common_send_dummy(SERVER_VIDEO2);
     while( 1 ) {
     	st = info.status;
     	if( info.exit ) break;
@@ -473,13 +474,14 @@ static int *video2_osd_func(void *arg)
     	goto exit;
     }
     server_set_status(STATUS_TYPE_THREAD_START, THREAD_OSD, 1 );
+    manager_common_send_dummy(SERVER_VIDEO2);
     while( 1 ) {
     	if( misc_get_bit(info.thread_exit, THREAD_OSD) )
     		break;
     	if( info.exit ) break;
     	st = info.status;
     	if( st == STATUS_RUN )
-    		video2_osd_proc(&ctrl,stream.frame);
+    		video2_osd_proc(&ctrl,stream.frame, config.osd.enable);
     	usleep(1000*500);
     }
     //release
@@ -507,6 +509,7 @@ static int *video2_main_func(void* arg)
     memcpy( &ctrl,(video_stream_t*)arg, sizeof(video_stream_t));
     av_buffer_init(&v2buffer, &vlock);
     server_set_status(STATUS_TYPE_THREAD_START, THREAD_VIDEO, 1 );
+    manager_common_send_dummy(SERVER_VIDEO2);
     while( 1 ) {
     	if( info.exit ) break;
     	if( misc_get_bit(info.thread_exit, THREAD_VIDEO) )
@@ -638,15 +641,10 @@ static int stream_start(void)
 	else {
 		return -1;
 	}
-	if( config.osd.enable ) {
-		if( stream.osd != -1 ) {
-			ret = rts_av_enable_chn(stream.osd);
-			if (ret) {
-				log_qcy(DEBUG_SERIOUS, "enable osd fail, ret = %d", ret);
-				return -1;
-			}
-		}
-		else {
+	if( stream.osd != -1 ) {
+		ret = rts_av_enable_chn(stream.osd);
+		if (ret) {
+			log_qcy(DEBUG_SERIOUS, "enable osd fail, ret = %d", ret);
 			return -1;
 		}
 	}
@@ -696,7 +694,7 @@ static int stream_stop(void)
 		ret = rts_av_stop_recv(stream.h264);
 	if(stream.jpg!=-1)
 		ret = rts_av_disable_chn(stream.jpg);
-	if( (stream.osd!=-1) && config.osd.enable )
+	if( stream.osd!=-1 )
 		ret = rts_av_disable_chn(stream.osd);
 	if(stream.h264!=-1)
 		ret = rts_av_disable_chn(stream.h264);
@@ -888,6 +886,31 @@ static void server_release_3(void)
 	memset(&info, 0, sizeof(server_info_t));
 }
 
+static int video2_init_routine(void)
+{
+	message_t msg;
+	if( !misc_get_bit( info.init_status, VIDEO2_INIT_CONDITION_REALTEK ) ) {
+		/********message body********/
+		msg_init(&msg);
+		msg.message = MSG_REALTEK_PROPERTY_GET;
+		msg.sender = msg.receiver = SERVER_VIDEO2;
+		msg.arg_in.cat = REALTEK_PROPERTY_AV_STATUS;
+		manager_common_send_message(SERVER_REALTEK,    &msg);
+		/****************************/
+	}
+	if( misc_full_bit( info.init_status, VIDEO2_INIT_CONDITION_NUM ) ) {
+		info.status = STATUS_WAIT;
+		/********message body********/
+		msg_init(&msg);
+		msg.message = MSG_MANAGER_TIMER_REMOVE;
+		msg.sender = msg.receiver = SERVER_VIDEO2;
+		msg.arg_in.handler = video2_init_routine;
+		manager_common_send_message(SERVER_MANAGER, &msg);
+		/****************************/
+	}
+	return 0;
+}
+
 /*
  *
  */
@@ -1003,23 +1026,22 @@ static int server_none(void)
 		ret = video2_config_video_read(&config);
 		if( !ret && misc_full_bit( config.status, CONFIG_VIDEO2_MODULE_NUM) ) {
 			misc_set_bit(&info.init_status, VIDEO2_INIT_CONDITION_CONFIG, 1);
+		    /********message body********/
+			msg_init(&msg);
+			msg.message = MSG_MANAGER_TIMER_ADD;
+			msg.sender = SERVER_VIDEO2;
+			msg.arg_in.cat = 100;
+			msg.arg_in.dog = 0;
+			msg.arg_in.duck = 0;
+			msg.arg_in.handler = &video2_init_routine;
+			manager_common_send_message(SERVER_MANAGER, &msg);
+			/****************************/
 		}
 		else {
 			info.status = STATUS_ERROR;
 			return ret;
 		}
 	}
-	if( !misc_get_bit( info.init_status, VIDEO2_INIT_CONDITION_REALTEK ) ) {
-		/********message body********/
-		msg_init(&msg);
-		msg.message = MSG_REALTEK_PROPERTY_GET;
-		msg.sender = msg.receiver = SERVER_VIDEO2;
-		msg.arg_in.cat = REALTEK_PROPERTY_AV_STATUS;
-		manager_common_send_message(SERVER_REALTEK,&msg);
-		/****************************/
-	}
-	if( misc_full_bit( info.init_status, VIDEO2_INIT_CONDITION_NUM ) )
-		info.status = STATUS_WAIT;
 	return ret;
 }
 
@@ -1097,7 +1119,8 @@ static void task_start(void)
 			server_start();
 			break;
 		case STATUS_RUN:
-			goto exit;
+			if( misc_get_bit(info.thread_start, THREAD_VIDEO) )
+				goto exit;
 			break;
 		case STATUS_ERROR:
 			msg.result = -1;
@@ -1138,8 +1161,11 @@ static void task_stop(void)
 		case STATUS_NONE:
 		case STATUS_WAIT:
 		case STATUS_SETUP:
-		case STATUS_IDLE:
 			goto exit;
+			break;
+		case STATUS_IDLE:
+			if( info.thread_start == 0)
+				goto exit;
 			break;
 		case STATUS_START:
 		case STATUS_RUN:
