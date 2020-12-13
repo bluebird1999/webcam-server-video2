@@ -1164,7 +1164,7 @@ static void task_stop(void)
 			goto exit;
 			break;
 		case STATUS_IDLE:
-			if( info.thread_start == 0)
+			if( misc_get_bit(info.thread_start, THREAD_VIDEO)==0 )
 				goto exit;
 			break;
 		case STATUS_START:
