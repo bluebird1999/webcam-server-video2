@@ -231,7 +231,8 @@ static void *video2_jpeg_func(void *arg)
     //init
     ret = video2_jpeg_thumbnail((char*)arg, 270, 180);
     //release
-    if( arg )
+exit:
+	if( arg )
     	free(arg);
     log_qcy(DEBUG_INFO, "-----------thread exit: video2_jpeg_thumbnail-----------");
     pthread_exit(0);
@@ -886,31 +887,6 @@ static void server_release_3(void)
 	memset(&info, 0, sizeof(server_info_t));
 }
 
-static int video2_init_routine(void)
-{
-	message_t msg;
-	if( !misc_get_bit( info.init_status, VIDEO2_INIT_CONDITION_REALTEK ) ) {
-		/********message body********/
-		msg_init(&msg);
-		msg.message = MSG_REALTEK_PROPERTY_GET;
-		msg.sender = msg.receiver = SERVER_VIDEO2;
-		msg.arg_in.cat = REALTEK_PROPERTY_AV_STATUS;
-		manager_common_send_message(SERVER_REALTEK,    &msg);
-		/****************************/
-	}
-	if( misc_full_bit( info.init_status, VIDEO2_INIT_CONDITION_NUM ) ) {
-		info.status = STATUS_WAIT;
-		/********message body********/
-		msg_init(&msg);
-		msg.message = MSG_MANAGER_TIMER_REMOVE;
-		msg.sender = msg.receiver = SERVER_VIDEO2;
-		msg.arg_in.handler = video2_init_routine;
-		manager_common_send_message(SERVER_MANAGER, &msg);
-		/****************************/
-	}
-	return 0;
-}
-
 /*
  *
  */
@@ -1026,21 +1002,34 @@ static int server_none(void)
 		ret = video2_config_video_read(&config);
 		if( !ret && misc_full_bit( config.status, CONFIG_VIDEO2_MODULE_NUM) ) {
 			misc_set_bit(&info.init_status, VIDEO2_INIT_CONDITION_CONFIG, 1);
-		    /********message body********/
-			msg_init(&msg);
-			msg.message = MSG_MANAGER_TIMER_ADD;
-			msg.sender = SERVER_VIDEO2;
-			msg.arg_in.cat = 100;
-			msg.arg_in.dog = 0;
-			msg.arg_in.duck = 0;
-			msg.arg_in.handler = &video2_init_routine;
-			manager_common_send_message(SERVER_MANAGER, &msg);
-			/****************************/
 		}
 		else {
 			info.status = STATUS_ERROR;
 			return ret;
 		}
+	}
+	if( !misc_get_bit( info.init_status, VIDEO2_INIT_CONDITION_REALTEK ) ) {
+		/********message body********/
+		msg_init(&msg);
+		msg.message = MSG_REALTEK_PROPERTY_GET;
+		msg.sender = msg.receiver = SERVER_VIDEO2;
+		msg.arg_in.cat = REALTEK_PROPERTY_AV_STATUS;
+		manager_common_send_message(SERVER_REALTEK,    &msg);
+		/****************************/
+		usleep(MESSAGE_RESENT_SLEEP);
+	}
+	if( !misc_get_bit( info.init_status, VIDEO2_INIT_CONDITION_MIIO_TIME)) {
+		/********message body********/
+		msg_init(&msg);
+		msg.message = MSG_MIIO_PROPERTY_GET;
+		msg.sender = msg.receiver = SERVER_VIDEO2;
+		msg.arg_in.cat = MIIO_PROPERTY_TIME_SYNC;
+		ret = manager_common_send_message(SERVER_MIIO, &msg);
+		/***************************/
+		usleep(MESSAGE_RESENT_SLEEP);
+	}
+	if( misc_full_bit( info.init_status, VIDEO2_INIT_CONDITION_NUM ) ) {
+		info.status = STATUS_WAIT;
 	}
 	return ret;
 }
@@ -1344,3 +1333,4 @@ int server_video2_message( message_t *msg)
 	pthread_mutex_unlock(&mutex);
 	return ret;
 }
+
