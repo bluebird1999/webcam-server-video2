@@ -300,8 +300,8 @@ static int video2_snapshot(message_t *msg)
 	else {
 		memset(filename, 0, sizeof(filename));
 		strcpy(filename, (char*)msg->arg);
-		cb.priv = (void*)filename;
 	}
+	cb.priv = (void*)filename;
 	ret = rts_av_set_callback(stream.jpg, &cb, 0);
 	if (ret) {
 		log_qcy(DEBUG_SERIOUS, "set mjpeg callback fail, ret = %d\n", ret);
