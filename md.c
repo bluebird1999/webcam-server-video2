@@ -65,14 +65,14 @@ static int md_trigger_message(void)
 		if( ( now - last_report) >= config.alarm_interval * 60 ) {
 			last_report = now;
 			message_t msg;
-			/********message body********/
+			/********motion notification********/
 			msg_init(&msg);
 //			msg.message = MICLOUD_EVENT_TYPE_OBJECTMOTION;
 			msg.sender = msg.receiver = SERVER_VIDEO2;
 			msg.extra = &now;
 			msg.extra_size = sizeof(now);
 			ret = manager_common_send_message(SERVER_MICLOUD, &msg);
-			/********message body********/
+			/********recorder********/
 			msg_init(&msg);
 			msg.message = MSG_RECORDER_ADD;
 			msg.sender = msg.receiver = SERVER_VIDEO2;
@@ -93,7 +93,17 @@ static int md_trigger_message(void)
 			msg.extra = &now;
 			msg.extra_size = sizeof(now);
 			ret = manager_common_send_message(SERVER_RECORDER,    &msg);
-			/********message body********/
+			/********snap shot********/
+			msg_init(&msg);
+			msg.sender = msg.receiver = SERVER_VIDEO2;
+			msg.arg_in.cat = 0;
+			msg.arg_in.dog = 1;
+			msg.arg_in.duck = 0;
+			msg.arg_in.tiger = RTS_AV_CB_TYPE_ASYNC;
+			msg.arg_in.chick = RECORDER_TYPE_MOTION_DETECTION;
+			msg.message = MSG_VIDE02_SNAPSHOT;
+			manager_common_send_message(SERVER_VIDEO2, &msg);
+			/**********************************************/
 		}
 	}
 	return ret;
