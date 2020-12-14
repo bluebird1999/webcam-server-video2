@@ -196,7 +196,7 @@ static int video2_jpeg_write(const char * filename, unsigned char* image_buffer,
      }
     img_buf = video2_jpeg_stretch_linear(w, h, 24, buff,  width, height);
     free(buff);
-    ret = video2_jpeg_write(fname, img_buf, 90, h, w);
+    ret = video2_jpeg_write(fname, img_buf, 60, h, w);
     if( img_buf )
     	free(img_buf);
 
