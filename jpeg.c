@@ -17,6 +17,9 @@
 #include <rtsvideo.h>
 #include <rtsbmp.h>
 #include <malloc.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <dirent.h>
 //program header
 #include "../../manager/manager_interface.h"
 #include "../../tools/tools_interface.h"
@@ -35,6 +38,16 @@
  * %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
  * %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
  */
+static int jpeg_check_sd(void)
+{
+	if( access("/mnt/media/normal", F_OK) ) {
+		log_qcy(DEBUG_INFO, "SD card access failed!, quit all snapshot!----");
+		return -1;
+	}
+	else
+		return 0;
+}
+
 METHODDEF(void) my_error_exit (j_common_ptr cinfo)
 {
   /* cinfo->err really points to a my_error_mgr struct, so coerce pointer */
@@ -142,6 +155,7 @@ static unsigned char* video2_jpeg_stretch_linear(int w_Dest,int h_Dest,int bit_d
 
 static int video2_jpeg_write(const char * filename, unsigned char* image_buffer, int quality,int image_height, int image_width)
 {
+	int ret = 0;
     if(filename == NULL || image_buffer == NULL)
     	return 1;
     struct jpeg_compress_struct cinfo;
@@ -167,12 +181,19 @@ static int video2_jpeg_write(const char * filename, unsigned char* image_buffer,
     row_stride = image_width * 3;    /* JSAMPLEs per row in image_buffer */
     while (cinfo.next_scanline < cinfo.image_height) {
         row_pointer[0] = & image_buffer[cinfo.next_scanline * row_stride];
-        (void) jpeg_write_scanlines(&cinfo, row_pointer, 1);
+        if( !jpeg_check_sd() ) {
+        	(void) jpeg_write_scanlines(&cinfo, row_pointer, 1);
+        }
+        else {
+        	ret = 1;
+        	goto exit;
+        }
     }
     jpeg_finish_compress(&cinfo);
+exit:
     fclose(outfile);
     jpeg_destroy_compress(&cinfo);
-    return 0;
+    return ret;
 }
 
  int video2_jpeg_thumbnail(const char* input, int w, int h)

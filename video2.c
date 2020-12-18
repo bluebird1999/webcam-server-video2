@@ -18,6 +18,9 @@
 #include <rtsvideo.h>
 #include <malloc.h>
 #include <miss.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <dirent.h>
 //program header
 #include "../../manager/manager_interface.h"
 #include "../../server/realtek/realtek_interface.h"
@@ -88,9 +91,16 @@ static int *video2_md_func(void *arg);
 /*
  * helper
  */
-/*
- * helper
- */
+static int video2_check_sd(void)
+{
+	if( access("/mnt/media/normal", F_OK) ) {
+		log_qcy(DEBUG_INFO, "SD card access failed!, quit all snapshot!----");
+		return -1;
+	}
+	else
+		return 0;
+}
+
 static int video2_get_property(message_t *msg)
 {
 	int ret = 0, st;
@@ -150,7 +160,7 @@ static int video2_set_property(message_t *msg)
 		if( temp != config.md.enable ) {
 			config.md.enable = temp;
 			log_qcy(DEBUG_INFO, "changed the motion switch = %d", config.md.enable);
-			video_config_video_set(CONFIG_VIDEO2_MD, &config.md);
+			video2_config_video_set(CONFIG_VIDEO2_MD, &config.md);
 			send_msg.arg_in.wolf = 1;
 			send_msg.arg = &temp;
 			send_msg.arg_size = sizeof(temp);
@@ -161,7 +171,7 @@ static int video2_set_property(message_t *msg)
 		if( temp != config.md.alarm_interval ) {
 			config.md.alarm_interval = temp;
 			log_qcy(DEBUG_INFO, "changed the motion detection alarm interval = %d", config.md.alarm_interval);
-			video_config_video_set(CONFIG_VIDEO2_MD, &config.md);
+			video2_config_video_set(CONFIG_VIDEO2_MD, &config.md);
 			send_msg.arg_in.wolf = 1;
 			send_msg.arg = &temp;
 			send_msg.arg_size = sizeof(temp);
@@ -173,7 +183,7 @@ static int video2_set_property(message_t *msg)
 		if( temp != config.md.sensitivity ) {
 			config.md.sensitivity = temp;
 			log_qcy(DEBUG_INFO, "changed the motion detection sensitivity = %d", config.md.sensitivity);
-			video_config_video_set(CONFIG_VIDEO2_MD, &config.md);
+			video2_config_video_set(CONFIG_VIDEO2_MD, &config.md);
 			send_msg.arg_in.wolf = 1;
 			send_msg.arg = &temp;
 			send_msg.arg_size = sizeof(temp);
@@ -184,7 +194,7 @@ static int video2_set_property(message_t *msg)
 		if( strcmp(config.md.start, (char*)(info.task.msg.arg)) ) {
 			strcpy( config.md.start, (char*)(info.task.msg.arg) );
 			log_qcy(DEBUG_INFO, "changed the motion detection start = %s", config.md.start);
-			video_config_video_set(CONFIG_VIDEO2_MD, &config.md);
+			video2_config_video_set(CONFIG_VIDEO2_MD, &config.md);
 			md_init_scheduler();
 			send_msg.arg_in.wolf = 1;
 			send_msg.arg = config.md.start;
@@ -195,7 +205,7 @@ static int video2_set_property(message_t *msg)
 		if( strcmp(config.md.end, (char*)(info.task.msg.arg)) ) {
 			strcpy( config.md.end, (char*)(info.task.msg.arg) );
 			log_qcy(DEBUG_INFO, "changed the motion detection end = %s", config.md.end);
-			video_config_video_set(CONFIG_VIDEO2_MD, &config.md);
+			video2_config_video_set(CONFIG_VIDEO2_MD, &config.md);
 			md_init_scheduler();
 			send_msg.arg_in.wolf = 1;
 			send_msg.arg = config.md.end;
@@ -207,7 +217,7 @@ static int video2_set_property(message_t *msg)
 		if( temp != config.md.cloud_report ) {
 			config.md.cloud_report = temp;
 			log_qcy(DEBUG_INFO, "changed the motion detection cloud push = %d", config.md.cloud_report);
-			video_config_video_set(CONFIG_VIDEO2_MD, &config.md);
+			video2_config_video_set(CONFIG_VIDEO2_MD, &config.md);
 			send_msg.arg_in.wolf = 1;
 			send_msg.arg = &temp;
 			send_msg.arg_size = sizeof(temp);
@@ -224,10 +234,13 @@ static int video2_set_property(message_t *msg)
 static void *video2_jpeg_func(void *arg)
 {
 	int ret=0;
+	message_t send_msg;
     signal(SIGINT, server_thread_termination);
     signal(SIGTERM, server_thread_termination);
     misc_set_thread_name("server_video2_thumb");
     pthread_detach(pthread_self());
+    msg_init(&send_msg);
+
     //init
     ret = video2_jpeg_thumbnail((char*)arg, 270, 180);
     //release
@@ -235,6 +248,10 @@ exit:
 	if( arg )
     	free(arg);
     log_qcy(DEBUG_INFO, "-----------thread exit: video2_jpeg_thumbnail-----------");
+	send_msg.sender = send_msg.receiver = SERVER_VIDEO2;
+	send_msg.message = MSG_DEVICE_ACTION;
+	send_msg.arg_in.cat = DEVICE_ACTION_SD_EJECTED_ACK;
+	manager_common_send_message(SERVER_DEVICE, &send_msg);
     pthread_exit(0);
 }
 
@@ -278,7 +295,8 @@ static void video2_mjpeg_func(void *priv, struct rts_av_profile *profile, struct
 		log_qcy(DEBUG_WARNING, "open video2 jpg snapshot file %s fail\n", (char*)priv);
 		return;
     }
-    fwrite(buffer->vm_addr, 1, buffer->bytesused, pfile);
+    if( !video2_check_sd() )
+    	fwrite(buffer->vm_addr, 1, buffer->bytesused, pfile);
     RTS_SAFE_RELEASE(pfile, fclose);
     return;
 }
@@ -533,6 +551,11 @@ static int *video2_main_func(void* arg)
         		continue;
         	}
         	packet = av_buffer_get_empty(&v2buffer, &qos.buffer_overrun, &qos.buffer_success);
+        	if( buffer->bytesused > 100*1024 ) {
+    			log_qcy(DEBUG_WARNING, "realtek video2 frame size=%d!!!!!!", buffer->bytesused);
+    			rts_av_put_buffer(buffer);
+    			continue;
+        	}
     		packet->data = malloc( buffer->bytesused );
     		if( packet->data == NULL) {
     			log_qcy(DEBUG_WARNING, "allocate memory failed in video2 buffer, size=%d", buffer->bytesused);
@@ -776,7 +799,7 @@ static int video2_init(void)
 		}
 	}
 	md_init_scheduler();
-	video2_isp_init(&config.isp);
+//	video2_isp_init(&config.isp);
 	return 0;
 }
 
@@ -794,6 +817,7 @@ static void write_video2_info(struct rts_av_buffer *data, av_data_info_t *info)
    		info->flag |= FLAG_WATERMARK_TIMESTAMP_EXIST << 13;
    	else
    		info->flag |= FLAG_WATERMARK_TIMESTAMP_NOT_EXIST << 13;
+   	info->flag &= ~(0xF);
     if( misc_get_bit(data->flags, 0/*RTSTREAM_PKT_FLAG_KEY*/) )// I frame
     	info->flag |= FLAG_FRAME_TYPE_IFRAME << 0;
     else
@@ -1198,9 +1222,13 @@ static void task_exit(void)
 {
 	switch( info.status ){
 		case EXIT_INIT:
-			info.error = VIDEO2_EXIT_CONDITION;
+			log_qcy(DEBUG_INFO,"VIDEO2: switch to exit task!");
 			if( info.task.msg.sender == SERVER_MANAGER) {
+				info.error = VIDEO2_EXIT_CONDITION;
 				info.error &= (info.task.msg.arg_in.cat);
+			}
+			else {
+				info.error = 0;
 			}
 			info.status = EXIT_SERVER;
 			break;
