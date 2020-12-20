@@ -23,6 +23,7 @@
 #define 	THREAD_3ACTRL			1
 #define		THREAD_MD				2
 #define		THREAD_VIDEO			3
+#define		THREAD_SPD				4
 
 #define		RUN_MODE_SAVE			0
 #define		RUN_MODE_MICLOUD		4

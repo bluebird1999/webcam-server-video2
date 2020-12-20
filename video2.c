@@ -41,6 +41,7 @@
 #include "config.h"
 #include "md.h"
 #include "jpeg.h"
+#include "spd.h"
 
 /*
  * static
@@ -56,6 +57,9 @@ static  pthread_rwlock_t	ilock = PTHREAD_RWLOCK_INITIALIZER;
 static	pthread_rwlock_t	vlock = PTHREAD_RWLOCK_INITIALIZER;
 static	pthread_mutex_t		mutex = PTHREAD_MUTEX_INITIALIZER;
 static	pthread_cond_t		cond = PTHREAD_COND_INITIALIZER;
+static 	message_buffer_t	video_buff;
+static pthread_mutex_t		vmutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t		vcond = PTHREAD_COND_INITIALIZER;
 
 //function
 //common
@@ -75,6 +79,7 @@ static int write_video2_buffer(av_packet_t *data, int id, int target, int type);
 static void write_video2_info(struct rts_av_buffer *data, av_data_info_t *info);
 static int *video2_3acontrol_func(void *arg);
 static int *video2_osd_func(void *arg);
+static void *video2_spd_func(void *arg);
 static int stream_init(void);
 static int stream_destroy(void);
 static int stream_start(void);
@@ -355,19 +360,23 @@ static int md_check_scheduler(void)
 {
 	int ret;
 	message_t msg;
-	pthread_t md_id;
+	pthread_t md_id, spd_id;
 	if( config.md.enable ) {
 		ret = video2_md_check_scheduler_time(&md_run.scheduler, &md_run.mode);
 		if( ret==1 ) {
-			if( !md_run.started && !misc_get_bit(info.thread_start, THREAD_MD) ) {
+			if( !md_run.started && !misc_get_bit(info.thread_start, THREAD_MD) &&
+					!misc_get_bit(info.thread_start, THREAD_SPD) ) {
 				//start the md thread
 				ret = pthread_create(&md_id, NULL, video2_md_func, (void*)&config.md);
+//				ret |= pthread_create(&spd_id, NULL, video2_spd_func, (void*)&config.md);
 				if(ret != 0) {
-					log_qcy(DEBUG_SERIOUS, "md thread create error! ret = %d",ret);
+					misc_set_bit( &info.thread_exit, THREAD_MD, 1);
+					misc_set_bit( &info.thread_exit, THREAD_SPD, 1);
+					log_qcy(DEBUG_SERIOUS, "md or spd thread create error! ret = %d",ret);
 					return -1;
 				}
 				else {
-					log_qcy(DEBUG_INFO, "md thread create successful!");
+					log_qcy(DEBUG_INFO, "md and spd thread create successful!");
 					md_run.started = 1;
 				    /********message body********/
 					msg_init(&msg);
@@ -405,6 +414,25 @@ stop_md:
 	return ret;
 }
 
+static int server_video2_spd_video_message(message_t *msg)
+{
+	int ret = 0;
+	pthread_mutex_lock(&vmutex);
+	if( (!video_buff.init) ) {
+		log_qcy(DEBUG_WARNING, "video2 spd is not ready for message processing!");
+		pthread_mutex_unlock(&vmutex);
+		return MISS_LOCAL_ERR_AV_NOT_RUN;
+	}
+	ret = msg_buffer_push(&video_buff, msg);
+	if( ret!=0 )
+		log_qcy(DEBUG_INFO, "message push in video2 spd error =%d", ret);
+	else {
+		pthread_cond_signal(&vcond);
+	}
+	pthread_mutex_unlock(&vmutex);
+	return ret;
+}
+
 static int *video2_md_func(void *arg)
 {
 	video2_md_config_t ctrl;
@@ -434,6 +462,58 @@ static int *video2_md_func(void *arg)
     //release
     video2_md_release();
     server_set_status(STATUS_TYPE_THREAD_START, THREAD_MD, 0 );
+    manager_common_send_dummy(SERVER_VIDEO2);
+    log_qcy(DEBUG_INFO, "-----------thread exit: %s-----------",fname);
+    pthread_exit(0);
+}
+
+static void *video2_spd_func(void *arg)
+{
+	int st;
+	int ret;
+	message_t msg;
+	video2_md_config_t ctrl;
+	rts_md_src md_src;
+	rts_pd_src pd_src;
+	char fname[MAX_SYSTEM_STRING_SIZE];
+    signal(SIGINT, server_thread_termination);
+    signal(SIGTERM, server_thread_termination);
+    sprintf(fname, "spd-%d",time_get_now_stamp());
+    misc_set_thread_name(fname);
+    pthread_detach(pthread_self());
+    //init
+    memcpy( &ctrl, (video2_md_config_t*)arg, sizeof(video2_md_config_t) );
+    msg_buffer_init2(&video_buff, MSG_BUFFER_OVERFLOW_YES, &vmutex);
+    video2_spd_init( config.profile.profile[config.profile.quality].video.width,
+    		config.profile.profile[config.profile.quality].video.height,
+			&md_src, &pd_src);
+    server_set_status(STATUS_TYPE_THREAD_START, THREAD_SPD, 1 );
+    manager_common_send_dummy(SERVER_VIDEO2);
+    while( 1 ) {
+    	st = info.status;
+    	if( info.exit ) break;
+    	if( !md_run.started ) break;
+    	else if( st == STATUS_START )
+    		continue;
+    	if( misc_get_bit(info.thread_exit, THREAD_SPD) )
+    		break;
+    	//condition
+    	pthread_mutex_lock(&vmutex);
+    	if( video_buff.head == video_buff.tail ) {
+			pthread_cond_wait(&vcond, &vmutex);
+    	}
+    	msg_init(&msg);
+    	ret = msg_buffer_pop(&video_buff, &msg);
+    	pthread_mutex_unlock(&vmutex);
+    	if( ret )
+    		continue;
+    	ret = video2_spd_proc( &ctrl, (av_packet_t*)(msg.arg), &md_src, &pd_src);
+    	msg_free(&msg);
+    }
+    //release
+    video2_spd_release();
+    msg_buffer_release2(&video_buff, &vmutex);
+    server_set_status(STATUS_TYPE_THREAD_START, THREAD_SPD, 0 );
     manager_common_send_dummy(SERVER_VIDEO2);
     log_qcy(DEBUG_INFO, "-----------thread exit: %s-----------",fname);
     pthread_exit(0);
@@ -546,12 +626,13 @@ static int *video2_main_func(void* arg)
     	if( ret )
     		continue;
     	if ( buffer ) {
-        	if( info.status2 == (1<<RUN_MODE_MOTION) ) {
+        	if( (info.status2 == (1<<RUN_MODE_MOTION)) &&
+        			!config.md.enable ) {
         		rts_av_put_buffer(buffer);
         		continue;
         	}
         	packet = av_buffer_get_empty(&v2buffer, &qos.buffer_overrun, &qos.buffer_success);
-        	if( buffer->bytesused > 100*1024 ) {
+        	if( buffer->bytesused > 200*1024 ) {
     			log_qcy(DEBUG_WARNING, "realtek video2 frame size=%d!!!!!!", buffer->bytesused);
     			rts_av_put_buffer(buffer);
     			continue;
@@ -585,6 +666,15 @@ static int *video2_main_func(void* arg)
 						qos.failed_send[RUN_MODE_SAVE+i] = 0;
 					}
 				}
+    		}
+    		if( misc_get_bit(info.status2, RUN_MODE_MOTION) && config.md.enable ) {
+    			ret = write_video2_buffer(packet, MSG_VIDEO2_SPD_VIDEO_DATA, SERVER_VIDEO2, 0);
+    			if( ret ) {
+
+    			}
+    			else {
+    				av_packet_add(packet);
+    			}
     		}
 /*    		if( misc_get_bit(info.status2, RUN_MODE_MICLOUD) ) {
       			if( write_video2_buffer(buffer, MSG_MICLOUD_VIDEO2_DATA, SERVER_MICLOUD, 0) != 0 )
@@ -848,6 +938,8 @@ static int write_video2_buffer( av_packet_t *data, int id, int target, int chann
 //		ret = server_micloud_video_message(&msg);
 	else if( target == SERVER_RECORDER )
 		ret = server_recorder_video_message(&msg);
+	else if( target == SERVER_VIDEO2 )
+		ret = server_video2_spd_video_message(&msg);
 	/****************************/
 	return ret;
 }
@@ -1364,4 +1456,3 @@ int server_video2_message( message_t *msg)
 	pthread_mutex_unlock(&mutex);
 	return ret;
 }
-
