@@ -29,7 +29,7 @@
 #include "../../server/miio/miio_interface.h"
 #include "../../server/recorder/recorder_interface.h"
 #include "../../server/device/device_interface.h"
-//#include "../../server/micloud/micloud_interface.h"
+#include "../../server/micloud/micloud_interface.h"
 //server header
 #include "video2.h"
 #include "video2_interface.h"
@@ -676,13 +676,12 @@ static int *video2_main_func(void* arg)
     				av_packet_add(packet);
     			}
     		}
-/*    		if( misc_get_bit(info.status2, RUN_MODE_MICLOUD) ) {
+    		if( misc_get_bit(info.status2, RUN_MODE_MICLOUD) ) {
       			if( write_video2_buffer(buffer, MSG_MICLOUD_VIDEO2_DATA, SERVER_MICLOUD, 0) != 0 )
     				log_qcy(DEBUG_SERIOUS, "Micloud ring buffer push failed!");
     									else
 						av_packet_add(packet);
     		}
-*/
     	}
     }
     //release
@@ -934,8 +933,8 @@ static int write_video2_buffer( av_packet_t *data, int id, int target, int chann
 	msg.arg_size = 0;
 	if( target == SERVER_MISS )
 		ret = server_miss_video_message(&msg);
-//	else if( target == SERVER_MICLOUD )
-//		ret = server_micloud_video_message(&msg);
+	else if( target == SERVER_MICLOUD )
+		ret = server_micloud_video_message(&msg);
 	else if( target == SERVER_RECORDER )
 		ret = server_recorder_video_message(&msg);
 	else if( target == SERVER_VIDEO2 )

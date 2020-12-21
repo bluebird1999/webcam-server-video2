@@ -21,7 +21,7 @@
 #include "../../tools/tools_interface.h"
 #include "../../server/miio/miio_interface.h"
 #include "../../server/recorder/recorder_interface.h"
-//#include "../../server/micloud/micloud_interface.h"
+#include "../../server/micloud/micloud_interface.h"
 //server header
 #include "md.h"
 #include "config.h"
@@ -67,7 +67,7 @@ static int md_trigger_message(void)
 			message_t msg;
 			/********motion notification********/
 			msg_init(&msg);
-//			msg.message = MICLOUD_EVENT_TYPE_OBJECTMOTION;
+			msg.message = MICLOUD_EVENT_TYPE_OBJECTMOTION;
 			msg.sender = msg.receiver = SERVER_VIDEO2;
 			msg.extra = &now;
 			msg.extra_size = sizeof(now);

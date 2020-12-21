@@ -22,6 +22,7 @@
 #include "../../server/miio/miio_interface.h"
 #include "../../server/recorder/recorder_interface.h"
 #include "../../server/realtek/realtek_interface.h"
+#include "../../server/micloud/micloud_interface.h"
 //server header
 #include "spd.h"
 #include "config.h"
@@ -62,7 +63,7 @@ static int spd_trigger_message(video2_md_config_t *config)
 			message_t msg;
 			/********motion notification********/
 			msg_init(&msg);
-//			msg.message = MICLOUD_EVENT_TYPE_OBJECTMOTION;
+			msg.message = MICLOUD_EVENT_TYPE_PEOPLEMOTION;
 			msg.sender = msg.receiver = SERVER_VIDEO2;
 			msg.extra = &now;
 			msg.extra_size = sizeof(now);
