@@ -31,17 +31,16 @@
 #include <getopt.h>
 #include <malloc.h>
 //program header
-#include "../../tools/log.h"
+#include "../../tools/tools_interface.h"
 //server header
 #include "osd.h"
-#include "video2_interface.h"
+#include "video_interface.h"
 
 
 /*
  * static
  */
 //variable
-static struct rts_video_osd2_attr 	*osd_attr;
 static osd_run_t					osd_run;
 static char cnum = 13;
 static char patt[]     = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '-', ' ', ':'};
@@ -50,12 +49,9 @@ static char offset_y[] = { 0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   1, 
 //function
 static int osd_image_to_8888(unsigned char *src, unsigned char *dst, unsigned int len);
 static int osd_draw_image_pattern(FT_Bitmap *bitmap, FT_Int x, FT_Int y, unsigned char *buf, int flag_rotate, int flag_ch);
-static int osd_get_picture_from_pattern(osd2_text_info_t *txt);
+static int osd_get_picture_from_pattern(osd_text_info_t *txt);
 static int osd_load_char(unsigned short c, unsigned char *pdata);
-static int osd_set_osd2_timedate(osd2_text_info_t *text, int blkidx);
-static int osd_adjust_txt_picture(char *txt, unsigned char *dst, unsigned int len);
-static int osd_set_osd2_text(void);
-static int osd_set_osd2_color_table(void);
+static int osd_set_osd_timedate(osd_text_info_t *text, int blkidx);
 
 /*
  * %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -118,7 +114,7 @@ static int osd_draw_image_pattern(FT_Bitmap *bitmap, FT_Int x, FT_Int y,
 	return ret;
 }
 
-static int osd_get_picture_from_pattern(osd2_text_info_t *txt)
+static int osd_get_picture_from_pattern(osd_text_info_t *txt)
 {
 	int i;
 	int val;
@@ -155,7 +151,7 @@ static int osd_get_picture_from_pattern(osd2_text_info_t *txt)
 
 static int osd_load_char(unsigned short c, unsigned char *pdata)
 {
-	int ret=0,j;
+	int ret=0, j=0;
 	FT_GlyphSlot  	slot;
 	FT_Matrix     	matrix;                 /* transformation matrix */
 	FT_Vector     	pen;
@@ -222,12 +218,12 @@ static int osd_load_char(unsigned short c, unsigned char *pdata)
 	return ret;
 }
 
-static int osd_set_osd2_timedate(osd2_text_info_t *text, int blkidx)
+static int osd_set_osd_timedate(osd_text_info_t *text, int blkidx)
 {
 	int ret = 0;
 	struct rts_video_osd2_block *block;
 	if ( !osd_run.osd_attr ) {
-		log_qcy(DEBUG_SERIOUS, "osd2 attribute isn't initialized!");
+		log_qcy(DEBUG_SERIOUS, "osd attribute isn't initialized!");
 		return -1;
 	}
 	ret = osd_get_picture_from_pattern(text);
@@ -251,180 +247,28 @@ static int osd_set_osd2_timedate(osd2_text_info_t *text, int blkidx)
 	block->enable = 1;
 	ret = rts_av_set_osd2_single(osd_run.osd_attr, blkidx);
 	if (ret < 0)
-		log_qcy(DEBUG_SERIOUS, "set osd2 fail, ret = %d\n", ret);
+		log_qcy(DEBUG_INFO, "set osd2 fail, ret = %d\n", ret);
 	return ret;
-}
-
-static int osd_adjust_txt_picture(char *txt, unsigned char *dst, unsigned int len)
-{
-	int i;
-	unsigned char *tmp;
-	unsigned int width;
-	int w = 0;
-	if ( !txt || !dst) {
-		log_qcy(DEBUG_SERIOUS, "empty pointer %s", __func__);
-		return -1;
-	}
-	tmp = (unsigned char *)malloc(len);
-	if (!tmp) {
-		log_qcy(DEBUG_SERIOUS, "malloc error: %s", __func__);
-		return -1;
-	}
-	memcpy(tmp, dst, len);
-	for (i = 0; i < strlen(txt); i++) {
-		if (0x0e == ((unsigned char)txt[i]) >> 4) {
-			width = osd_run.pixel_size;
-			i += 2;
-		} else {
-			width = osd_run.pixel_size / 2;
-		}
-		if (osd_run.rotate) {
-			memcpy((dst + (len / osd_run.pixel_size - w - width) * osd_run.pixel_size),
-				   (tmp + w * osd_run.pixel_size),
-				   width * osd_run.pixel_size);
-		} else {
-			int p;
-			int q;
-			unsigned char *src = tmp + w * osd_run.pixel_size;
-			for (p = 0; p < osd_run.pixel_size; p++) {
-				for (q = 0; q < width; q++)
-					dst[p * len / osd_run.pixel_size + w + q] = src[p * width + q];
-			}
-		}
-		w += width;
-	}
-	rts_free(tmp);
-	return 0;
-}
-
-static int osd_set_osd2_text(void)
-{
-	struct rts_video_osd2_block *block;
-	char show_txt[] = "QCY";
-	int ret = -1;
-	unsigned char *pbuf;
-	int i;
-	unsigned int len = 0;
-	unsigned short ch = 0;
-	unsigned char *p;//[WIDTH_CH * HEIGHT];
-	if( osd_run.osd_attr == NULL ) {
-		log_qcy(DEBUG_SERIOUS, "%s osd attribute empty!",__func__);
-		return -1;
-	}
-	p = malloc( osd_run.pixel_size * osd_run.pixel_size );
-	if( p == NULL ) {
-		log_qcy(DEBUG_SERIOUS, "%s memory allocation failed!",__func__);
-		return -1;
-	}
-	for (i = 0; i < strlen(show_txt); i++) {
-		if (0x0e == ((unsigned char)show_txt[i]) >> 4) {
-			i += 2;
-			len += osd_run.pixel_size * osd_run.pixel_size;
-		} else {
-			len += osd_run.pixel_size * osd_run.pixel_size / 2;
-		}
-	}
-	block = &osd_run.osd_attr->blocks[3];
-	block->picture.length = len;
-	pbuf = (unsigned char *)malloc(len);
-	if (!pbuf) {
-		free(p);
-		log_qcy(DEBUG_SERIOUS, "%s memory allocation failed!",__func__);
-		return -1;
-	}
-	unsigned char *ptmp = pbuf;
-	for (i = 0; i < strlen(show_txt); i++) {
-		unsigned int char_len;
-		if (0x0e == ((unsigned char)show_txt[i]) >> 4) {
-			ch = (unsigned short)(show_txt[i] & 0x0f) << 12 |
-				 (unsigned short)(show_txt[i + 1] & 0x3f) << 6 |
-				 (unsigned short)(show_txt[i + 2] & 0x3f);
-			i += 2;
-			char_len = osd_run.pixel_size * osd_run.pixel_size;
-		} else {
-			ch = (unsigned short)show_txt[i];
-			char_len = osd_run.pixel_size / 2 * osd_run.pixel_size;
-		}
-		memset(p, 0, osd_run.pixel_size * osd_run.pixel_size);
-		osd_load_char(ch, p);
-		memcpy(ptmp, p, char_len);
-		ptmp += char_len;
-	}
-	ret = osd_adjust_txt_picture(show_txt, pbuf, len);
-	if( ret < 0 ) {
-		log_qcy(DEBUG_SERIOUS, "error from adjust txt picture!");
-		free(p);
-		free(pbuf);
-		return -1;
-	}
-	block->picture.pixel_fmt = RTS_OSD2_BLK_FMT_RGBA2222;
-	block->picture.pdata = pbuf;
-	if (osd_run.rotate) {
-		block->rect.left = 10;
-		block->rect.top = 10;
-	} else {
-		block->rect.left = 10;
-		block->rect.top = 10;
-	}
-	if (osd_run.rotate) {
-		block->rect.right = block->rect.left + osd_run.pixel_size;
-		block->rect.bottom = block->rect.top + len / osd_run.pixel_size;
-	} else {
-		block->rect.right = block->rect.left + len / osd_run.pixel_size;
-		block->rect.bottom = block->rect.top + osd_run.pixel_size;
-	}
-	block->enable = 1;
-	ret = rts_av_set_osd2_single(osd_run.osd_attr, 3);
-	if (ret < 0) {
-		log_qcy(DEBUG_SERIOUS, "set osd2 fail, ret = %d\n", ret);
-	}
-	free(p);
-	free(pbuf);
-	return ret;
-}
-
-static int osd_set_osd2_color_table(void)
-{
-	int ret;
-	unsigned int val = 0xffffffff; /*green(from high to low: r, g, b, a)*/
-	unsigned char r = 3; /*0b11*/
-	unsigned char g = 3; /*0b11*/
-	unsigned char b = 3; /*0b11*/
-	unsigned char a = 3; /*0b11*/
-	if (!osd_run.osd_attr)
-		return -1;
-	ret = rts_av_set_osd2_color_table(osd_run.osd_attr, RTS_OSD2_BLK_FMT_RGBA2222, val, r, g, b, a);
-	if ( ret!=0 ) {
-		log_qcy(DEBUG_SERIOUS, "set osd2 color table fail\n");
-		return -1;
-	}
-	if (rts_av_get_osd2_color_table(osd_run.osd_attr, RTS_OSD2_BLK_FMT_RGBA2222, r, g, b, a) != val) {
-		log_qcy(DEBUG_SERIOUS, "get and compare osd2 color table fail\n");
-		return -1;
-	}
-	return 0;
 }
 
 /*
  * interface
  */
-int video2_osd_proc(video2_osd_config_t *ctrl, int frame, int enable)
+int video_osd_proc(video_osd_config_t *ctrl)
 {
-	char now_time[20] = "00:00:00";
+	char now_time[20] = "";
 	int ret;
-	osd2_text_info_t text_tm;
+	osd_text_info_t text_tm;
 	time_t now;
 	struct tm tm = {0};
-	int i;
-	if (enable) {
-		osd_run.osd_attr->blocks[0].enable = 1;
-	}
-	else {
-		osd_run.osd_attr->blocks[0].enable = 0;
-		return 0;
-	}
+	//**color
 	now = time(NULL);
 	localtime_r(&now, &tm);
+	if( (tm.tm_hour >= 19) || (tm.tm_hour <= 7) )
+		osd_run.color = 0xFF;
+	else
+		osd_run.color = 0x00;
+	//***
 	sprintf(now_time, "%04d-%02d-%02d %02d:%02d:%02d", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
 			tm.tm_hour, tm.tm_min, tm.tm_sec);
 	text_tm.text = now_time;
@@ -436,29 +280,34 @@ int video2_osd_proc(video2_osd_config_t *ctrl, int frame, int enable)
 		text_tm.x = osd_run.offset_x;
 		text_tm.y = osd_run.offset_y;
 	}
-	ret = osd_set_osd2_timedate(&text_tm, 0);
+	ret = osd_set_osd_timedate(&text_tm, 0);
 	if (ret < 0) {
-		log_qcy(DEBUG_SERIOUS, "%s, set osd2 attr fail\n", __func__);
+		log_qcy(DEBUG_INFO, "%s, set osd2 attr fail\n", __func__);
 		return -1;
 	}
 	return ret;
 }
 
-int video2_osd_init(video2_osd_config_t *ctrl, int stream, int width, int height)
+int video_osd_init(video_osd_config_t *ctrl, int stream, int width, int height)
 {
-	int ret=0;
-	char face_path[32];
 	time_t now;
 	struct tm tm = {0};
-	int i;
-	now = time(NULL);
-	localtime_r(&now, &tm);
+	int i, ret = 0;
+	//***
 	osd_run.stream = stream;
 	osd_run.rotate = ctrl->time_rotate;
 	osd_run.alpha = ctrl->time_alpha;
+	osd_run.color = ctrl->time_color;
+	//**color
+	now = time(NULL);
+	localtime_r(&now, &tm);
+	if( (tm.tm_hour >= 19) || (tm.tm_hour <= 7) )
+		osd_run.color = 0xFF;
+	else
+		osd_run.color = 0x00;
+	//***
 	osd_run.width = width;
 	osd_run.height = height;
-	osd_run.color = ctrl->time_color;
 	if( width >= 1920 ) {
 		osd_run.pixel_size = 48;
 		osd_run.offset_x = 12;
@@ -479,46 +328,40 @@ int video2_osd_init(video2_osd_config_t *ctrl, int stream, int width, int height
 		osd_run.offset_x = 4;
 		osd_run.offset_y = 4;
 	}
-	if( tm.tm_hour >= 18 ) osd_run.color = 0xFF;
-	else osd_run.color = 0x00;
-	//init freetype
-	FT_Init_FreeType(&osd_run.library);
-	snprintf(face_path, 32, "%sfont/%s%s", _config_.qcy_path, ctrl->time_font_face, ".ttf");
-	FT_New_Face(osd_run.library, face_path, 0, &osd_run.face);
 	FT_Set_Pixel_Sizes(osd_run.face, osd_run.pixel_size, 0);
 	osd_run.ipattern = (unsigned char *)calloc( osd_run.pixel_size * osd_run.pixel_size / 2, sizeof(patt) );
 	if (!osd_run.ipattern) {
-		log_qcy(DEBUG_SERIOUS, "%s calloc fail\n", __func__);
-		video2_osd_release();
+		log_qcy(DEBUG_WARNING, "%s calloc fail\n", __func__);
+		video_osd_release();
 		return -1;
 	}
 	osd_run.image2222 = (unsigned char *)calloc( 20 * osd_run.pixel_size * osd_run.pixel_size / 2, 1 );
 	if (!osd_run.image2222) {
-		log_qcy(DEBUG_SERIOUS, "%s calloc fail\n", __func__);
-		video2_osd_release();
+		log_qcy(DEBUG_WARNING, "%s calloc fail\n", __func__);
+		video_osd_release();
 		return -1;
 	}
 	osd_run.image8888 = (unsigned char *)calloc( 20 * 4 * osd_run.pixel_size * osd_run.pixel_size / 2, 1);
 	if (!osd_run.image8888) {
-		log_qcy(DEBUG_SERIOUS, "%s calloc fail\n", __func__);
-		video2_osd_release();
+		log_qcy(DEBUG_WARNING, "%s calloc fail\n", __func__);
+		video_osd_release();
 		return -1;
 	}
 	for (i = 0; i < sizeof(patt); i++) {
 		osd_load_char( (unsigned short)patt[i], osd_run.ipattern + osd_run.pixel_size * osd_run.pixel_size / 2 * i);
 	}
+    RTS_SAFE_RELEASE(osd_run.osd_attr, rts_av_release_osd2);
 	ret = rts_av_query_osd2(osd_run.stream, &osd_run.osd_attr);
 	if (ret < 0) {
 		log_qcy(DEBUG_SERIOUS, "%s, query osd2 attr fail\n", __func__);
-		video2_osd_release();
+		video_osd_release();
 		return -1;
 	}
 	return ret;
 }
 
-int video2_osd_release(void)
+int video_osd_release(void)
 {
-	int ret=0;
 	if( osd_run.ipattern ) {
 		free( osd_run.ipattern);
 		osd_run.ipattern = NULL;
@@ -531,8 +374,25 @@ int video2_osd_release(void)
 		free( osd_run.image8888);
 		osd_run.image8888 = NULL;
 	}
-	FT_Done_Face(osd_run.face);
-   	FT_Done_FreeType(osd_run.library);
     RTS_SAFE_RELEASE(osd_run.osd_attr, rts_av_release_osd2);
-	return ret;
 }
+
+int video_osd_font_init(video_osd_config_t *ctrl)
+{
+	char face_path[32];
+	//init freetype
+	FT_Init_FreeType(&osd_run.library);
+	memset(face_path, 0, sizeof(face_path));
+	snprintf(face_path, 32, "%sfont/%s%s", _config_.qcy_path, ctrl->time_font_face, ".ttf");
+	FT_New_Face(osd_run.library, face_path, 0, &osd_run.face);
+}
+
+int video_osd_font_release(void)
+{
+	int ret;
+	ret = FT_Done_Face(osd_run.face);
+   	ret = FT_Done_FreeType(osd_run.library);
+    return ret;
+}
+
+

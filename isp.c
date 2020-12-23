@@ -20,7 +20,6 @@
 //server header
 #include "isp.h"
 
-
 /*
  * static
  */
@@ -50,7 +49,7 @@ static int isp_get_valid_value(int id, int value, struct rts_video_control *ctrl
 /*
  * interface
  */
-int video2_isp_get_attr(unsigned int id)
+int video_isp_get_attr(unsigned int id)
 {
 	struct rts_video_control ctrl;
 	int ret;
@@ -65,7 +64,7 @@ int video2_isp_get_attr(unsigned int id)
 	return 0;
 }
 
-int video2_isp_set_attr(unsigned int id, int value)
+int video_isp_set_attr(unsigned int id, int value)
 {
 	struct rts_video_control ctrl;
 	int ret;
@@ -98,25 +97,25 @@ int video2_isp_set_attr(unsigned int id, int value)
 	return 0;
 }
 
-int video2_isp_init(video2_isp_config_t *ctrl)
+int video_isp_init(video_isp_config_t *ctrl)
 {
 	int ret = 0;
-	ret |= video2_isp_set_attr(RTS_VIDEO_CTRL_ID_AWB_CTRL, ctrl->awb_ctrl);
-	ret |= video2_isp_set_attr(RTS_VIDEO_CTRL_ID_AF, ctrl->af);
-	ret |= video2_isp_set_attr(RTS_VIDEO_CTRL_ID_EXPOSURE_MODE, ctrl->exposure_mode);
-	ret |= video2_isp_set_attr(RTS_VIDEO_CTRL_ID_PAN, ctrl->pan);
-	ret |= video2_isp_set_attr(RTS_VIDEO_CTRL_ID_TILT, ctrl->tilt);
-	ret |= video2_isp_set_attr(RTS_VIDEO_CTRL_ID_MIRROR, ctrl->mirror);
-	ret |= video2_isp_set_attr(RTS_VIDEO_CTRL_ID_FLIP, ctrl->flip);
-	ret |= video2_isp_set_attr(RTS_VIDEO_CTRL_ID_WDR_MODE, ctrl->wdr_mode);
-	ret |= video2_isp_set_attr(RTS_VIDEO_CTRL_ID_WDR_LEVEL, ctrl->wdr_level);
-	ret |= video2_isp_set_attr(RTS_VIDEO_CTRL_ID_IR_MODE, ctrl->ir_mode);
-	ret |= video2_isp_set_attr(RTS_VIDEO_CTRL_ID_SMART_IR_MODE, ctrl->smart_ir_mode);
-	ret |= video2_isp_set_attr(RTS_VIDEO_CTRL_ID_SMART_IR_MANUAL_LEVEL, ctrl->smart_ir_manual_level);
-	ret |= video2_isp_set_attr(RTS_VIDEO_CTRL_ID_LDC, ctrl->ldc);
-	ret |= video2_isp_set_attr(RTS_VIDEO_CTRL_ID_NOISE_REDUCTION, ctrl->noise_reduction);
-	ret |= video2_isp_set_attr(RTS_VIDEO_CTRL_ID_IN_OUT_DOOR_MODE, ctrl->in_out_door_mode);
-	ret |= video2_isp_set_attr(RTS_VIDEO_CTRL_ID_DETAIL_ENHANCEMENT, ctrl->detail_enhancement);
+	ret |= video_isp_set_attr(RTS_VIDEO_CTRL_ID_AWB_CTRL, ctrl->awb_ctrl);
+	ret |= video_isp_set_attr(RTS_VIDEO_CTRL_ID_AF, ctrl->af);
+	ret |= video_isp_set_attr(RTS_VIDEO_CTRL_ID_EXPOSURE_MODE, ctrl->exposure_mode);
+	ret |= video_isp_set_attr(RTS_VIDEO_CTRL_ID_PAN, ctrl->pan);
+	ret |= video_isp_set_attr(RTS_VIDEO_CTRL_ID_TILT, ctrl->tilt);
+	ret |= video_isp_set_attr(RTS_VIDEO_CTRL_ID_MIRROR, ctrl->mirror);
+	ret |= video_isp_set_attr(RTS_VIDEO_CTRL_ID_FLIP, ctrl->flip);
+	ret |= video_isp_set_attr(RTS_VIDEO_CTRL_ID_WDR_MODE, ctrl->wdr_mode);
+	ret |= video_isp_set_attr(RTS_VIDEO_CTRL_ID_WDR_LEVEL, ctrl->wdr_level);
+	ret |= video_isp_set_attr(RTS_VIDEO_CTRL_ID_IR_MODE, ctrl->ir_mode);
+	ret |= video_isp_set_attr(RTS_VIDEO_CTRL_ID_SMART_IR_MODE, ctrl->smart_ir_mode);
+	ret |= video_isp_set_attr(RTS_VIDEO_CTRL_ID_SMART_IR_MANUAL_LEVEL, ctrl->smart_ir_manual_level);
+	ret |= video_isp_set_attr(RTS_VIDEO_CTRL_ID_LDC, ctrl->ldc);
+	ret |= video_isp_set_attr(RTS_VIDEO_CTRL_ID_NOISE_REDUCTION, ctrl->noise_reduction);
+	ret |= video_isp_set_attr(RTS_VIDEO_CTRL_ID_IN_OUT_DOOR_MODE, ctrl->in_out_door_mode);
+	ret |= video_isp_set_attr(RTS_VIDEO_CTRL_ID_DETAIL_ENHANCEMENT, ctrl->detail_enhancement);
 	return ret;
 }
 

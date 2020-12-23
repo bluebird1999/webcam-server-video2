@@ -20,7 +20,6 @@
 //server header
 #include "white_balance.h"
 
-
 /*
  * static
  */
@@ -77,7 +76,7 @@ static int white_balance_set_component(int r, int g, int b)
 /*
  * interface
  */
-int video2_white_balance_proc(isp_awb_para_t *ctrl, int frame)
+int video_white_balance_proc(isp_awb_para_t *ctrl, int frame)
 {
 	int ret=0;
 	struct rts_isp_awb_gain ct_gain;
@@ -97,7 +96,7 @@ int video2_white_balance_proc(isp_awb_para_t *ctrl, int frame)
 	return ret;
 }
 
-int video2_white_balance_init(isp_awb_para_t *ctrl)
+int video_white_balance_init(isp_awb_para_t *ctrl)
 {
 	int ret=0;
     last_frame = 0;
@@ -118,7 +117,7 @@ int video2_white_balance_init(isp_awb_para_t *ctrl)
 	return ret;
 }
 
-int video2_white_balance_release(void)
+int video_white_balance_release(void)
 {
 	int ret=0;
 	RTS_SAFE_RELEASE(awb, rts_av_release_isp_awb);

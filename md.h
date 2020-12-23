@@ -11,7 +11,7 @@
 /*
  * header
  */
-#include "config.h"
+#include "../video/config.h"
 
 /*
  * define
@@ -31,10 +31,10 @@ typedef struct md_bmp_data_t {
 /*
  * function
  */
-int video2_md_release(void);
-int video2_md_init(video2_md_config_t *config, int width, int height);
-int video2_md_proc(void);
-int video2_md_get_scheduler_time(char *input, scheduler_time_t *st, int *mode);
-int video2_md_check_scheduler_time(scheduler_time_t *st, int *mode);
+int video_md_release(void);
+int video_md_init(video_md_config_t *config, int width, int height);
+int video_md_proc(void);
+int video_md_get_scheduler_time(char *input, scheduler_time_t *st, int *mode);
+int video_md_check_scheduler_time(scheduler_time_t *st, int *mode);
 
 #endif /* SERVER_VIDEO_MD_H_ */

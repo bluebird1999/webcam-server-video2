@@ -16,12 +16,12 @@
 #include <rtsvideo.h>
 #include <ft2build.h>
 #include FT_FREETYPE_H
+
 #include "config.h"
 
 /*
  * define
  */
-#define	OSD_FRAME_INTERVAL			5
 
 /*
  * structure
@@ -46,9 +46,12 @@ typedef struct osd_run_t {
 /*
  * function
  */
-int video2_osd_init(video2_osd_config_t *ctrl, int stream, int width, int height);
-int video2_osd_release(void);
-int video2_osd_proc(video2_osd_config_t *ctrl, int frame, int enable);
+int video_osd_init(video_osd_config_t *ctrl, int stream, int width, int height);
+int video_osd_release(void);
+int video_osd_proc(video_osd_config_t *ctrl);
+int video_osd_stop(video_osd_config_t *ctrl);
+int video_osd_font_release(void);
+int video_osd_font_init(video_osd_config_t *ctrl);
 
 
 #endif /* SERVER_VIDEO_OSD_H_ */

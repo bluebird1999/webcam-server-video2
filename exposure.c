@@ -20,7 +20,6 @@
 //server header
 #include "exposure.h"
 
-
 /*
  * static
  */
@@ -113,7 +112,7 @@ static int exposure_set_manual_exposure_time(int et)
 /*
  * interface
  */
-int video2_exposure_proc(isp_ae_para_t *ctrl, int frame)
+int video_exposure_proc(isp_ae_para_t *ctrl, int frame)
 {
 	int ret=0;
 	if( (frame - last_frame) > AE_FRAME_INTERVAL ) {
@@ -128,7 +127,7 @@ int video2_exposure_proc(isp_ae_para_t *ctrl, int frame)
 	return ret;
 }
 
-int video2_exposure_init(isp_ae_para_t *ctrl)
+int video_exposure_init(isp_ae_para_t *ctrl)
 {
 	int ret=0;
     last_frame = 0;
@@ -159,7 +158,7 @@ int video2_exposure_init(isp_ae_para_t *ctrl)
 	return ret;
 }
 
-int video2_exposure_release(void)
+int video_exposure_release(void)
 {
 	int ret=0;
     last_frame = 0;

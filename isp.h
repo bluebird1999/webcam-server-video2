@@ -11,7 +11,7 @@
 /*
  * header
  */
-#include "config.h"
+#include "../video/config.h"
 
 /*
  * define
@@ -25,8 +25,8 @@
 /*
  * function
  */
-int video2_isp_get_attr(unsigned int id);
-int video2_isp_set_attr(unsigned int id, int value);
-int video2_isp_init(video2_isp_config_t *ctrl);
+int video_isp_get_attr(unsigned int id);
+int video_isp_set_attr(unsigned int id, int value);
+int video_isp_init(video_isp_config_t *ctrl);
 
 #endif /* SERVER_VIDEO_ISP_H_ */

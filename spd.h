@@ -16,12 +16,14 @@
 #include <rts_md.h>
 #include <rts_pd.h>
 #include <rts_network.h>
-#include "config.h"
+
+#include "../video/config.h"
 
 /*
  * define
  */
-
+#define 	SPD_CONFIG_FILE_NAME			"spd.config"
+#define 	SPD_WEIGHT_FILE_NAME			"spd_weight.data"
 
 /*
  * structure
@@ -30,8 +32,8 @@
 /*
  * function
  */
-int video2_spd_proc(video2_md_config_t *ctrl, av_packet_t *packet, rts_md_src *md_src, rts_pd_src *pd_src);
-int video2_spd_init(int width, int height, rts_md_src *md_src, rts_pd_src *pd_src);
-int video2_spd_release(void);
+int video_spd_proc(video_spd_config_t *ctrl, rts_md_src *md_src, rts_pd_src *pd_src);
+int video_spd_init(video_spd_config_t *ctrl, rts_md_src *md_src, rts_pd_src *pd_src);
+int video_spd_release(void);
 
 #endif /* SERVER_VIDEO_SPD_H_ */

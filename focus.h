@@ -11,7 +11,7 @@
 /*
  * header
  */
-#include "config.h"
+#include "../video/config.h"
 
 /*
  * define
@@ -24,8 +24,8 @@
 /*
  * function
  */
-int video2_focus_int(isp_af_para_t *ctrl);
-int video2_focus_release(void);
-int video2_focus_proc(isp_af_para_t *ctrl, int frame);
+int video_focus_int(isp_af_para_t *ctrl);
+int video_focus_release(void);
+int video_focus_proc(isp_af_para_t *ctrl, int frame);
 
 #endif /* SERVER_VIDEO_FOCUS_H_ */

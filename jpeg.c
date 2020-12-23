@@ -25,7 +25,6 @@
 #include "../../tools/tools_interface.h"
 //server header
 #include "jpeg.h"
-
 /*
  * static
  */
@@ -59,7 +58,7 @@ METHODDEF(void) my_error_exit (j_common_ptr cinfo)
   longjmp(myerr->setjmp_buffer, 1);
 }
 
-static unsigned char* video2_jpeg_read(const char* path, int *width, int *height)
+static unsigned char* video_jpeg_read(const char* path, int *width, int *height)
 {
 	FILE *file = fopen( path, "rb" );
 	if ( file == NULL ) {
@@ -112,7 +111,7 @@ static unsigned char* video2_jpeg_read(const char* path, int *width, int *height
 	return data;
 }
 
-static unsigned char* video2_jpeg_stretch_linear(int w_Dest,int h_Dest,int bit_depth,unsigned char *src,int w_Src,int h_Src)
+static unsigned char* video_jpeg_stretch_linear(int w_Dest,int h_Dest,int bit_depth,unsigned char *src,int w_Src,int h_Src)
 {
     int sw = w_Src-1, sh = h_Src-1, dw = w_Dest-1, dh = h_Dest-1;
     int B, N, x, y;
@@ -153,7 +152,7 @@ static unsigned char* video2_jpeg_stretch_linear(int w_Dest,int h_Dest,int bit_d
     return pDest;
 }
 
-static int video2_jpeg_write(const char * filename, unsigned char* image_buffer, int quality,int image_height, int image_width)
+static int video_jpeg_write(const char * filename, unsigned char* image_buffer, int quality,int image_height, int image_width)
 {
 	int ret = 0;
     if(filename == NULL || image_buffer == NULL)
@@ -196,7 +195,7 @@ exit:
     return ret;
 }
 
- int video2_jpeg_thumbnail(const char* input, int w, int h)
+ int video_jpeg_thumbnail(const char* input, int w, int h)
 {
 	 char fname[MAX_SYSTEM_STRING_SIZE*4];
 	 char temp[MAX_SYSTEM_STRING_SIZE*4];
@@ -210,14 +209,14 @@ exit:
 	 memset(temp, 0, sizeof(temp));
 	 memcpy(temp, input, strlen(input)-6); //remove "_f.jpg"
 	 sprintf(fname, "%s.jpg",temp);
-     buff = video2_jpeg_read(input, &width, &height);
+     buff = video_jpeg_read(input, &width, &height);
      if(buff == NULL) {
     	 log_qcy(DEBUG_WARNING, "ReadJpeg Failed\n");
     	 return -1;
      }
-    img_buf = video2_jpeg_stretch_linear(w, h, 24, buff,  width, height);
+    img_buf = video_jpeg_stretch_linear(w, h, 24, buff,  width, height);
     free(buff);
-    ret = video2_jpeg_write(fname, img_buf, 60, h, w);
+    ret = video_jpeg_write(fname, img_buf, 60, h, w);
     if( img_buf )
     	free(img_buf);
 

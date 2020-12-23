@@ -24,21 +24,23 @@
 #include "../../server/micloud/micloud_interface.h"
 //server header
 #include "md.h"
+#include "video_interface.h"
 #include "config.h"
-#include "video2_interface.h"
+#include "video.h"
 
 /*
  * static
  */
 
 //variable
-static video2_md_config_t	config;
+static video_md_config_t	config;
 static struct rts_video_md_attr *attr = NULL;
 struct rts_video_md_result result;
 md_bmp_data_t bmp;
 static const int GRID_R = 72;
 static const int GRID_C = 128;
 static unsigned long long int last_report = 0;
+
 //function
 static int md_enable(int polling, int trig, unsigned int data_mode_mask, int width, int height, int sensitivity, md_bmp_data_t *bmp);
 static int md_disable(void);
@@ -56,8 +58,8 @@ static int md_copy_data(unsigned char *psrc, int bpp, int w, int h, unsigned int
 static int md_trigger_message(void)
 {
 	int ret = 0;
-	unsigned long long int now;
 	recorder_init_t init;
+	unsigned long long int now;
 	if( config.cloud_report ) {
 		now = time_get_now_stamp();
 		if( config.alarm_interval < 1)
@@ -68,15 +70,16 @@ static int md_trigger_message(void)
 			/********motion notification********/
 			msg_init(&msg);
 			msg.message = MICLOUD_EVENT_TYPE_OBJECTMOTION;
-			msg.sender = msg.receiver = SERVER_VIDEO2;
+			msg.sender = msg.receiver = SERVER_VIDEO;
 			msg.extra = &now;
 			msg.extra_size = sizeof(now);
 			ret = manager_common_send_message(SERVER_MICLOUD, &msg);
 			/********recorder********/
 			msg_init(&msg);
 			msg.message = MSG_RECORDER_ADD;
-			msg.sender = msg.receiver = SERVER_VIDEO2;
-			init.video_channel = 1;
+			msg.sender = msg.receiver = SERVER_VIDEO;
+			memset(&init, 0, sizeof(init));
+			init.video_channel = 0;
 			init.mode = RECORDER_MODE_BY_TIME;
 			init.type = RECORDER_TYPE_MOTION_DETECTION;
 			init.audio = 1;
@@ -95,14 +98,14 @@ static int md_trigger_message(void)
 			ret = manager_common_send_message(SERVER_RECORDER,    &msg);
 			/********snap shot********/
 			msg_init(&msg);
-			msg.sender = msg.receiver = SERVER_VIDEO2;
+			msg.sender = msg.receiver = SERVER_VIDEO;
 			msg.arg_in.cat = 0;
 			msg.arg_in.dog = 1;
 			msg.arg_in.duck = 0;
 			msg.arg_in.tiger = RTS_AV_CB_TYPE_ASYNC;
 			msg.arg_in.chick = RECORDER_TYPE_MOTION_DETECTION;
-			msg.message = MSG_VIDE02_SNAPSHOT;
-			manager_common_send_message(SERVER_VIDEO2, &msg);
+			msg.message = MSG_VIDEO_SNAPSHOT;
+			manager_common_send_message(SERVER_VIDEO, &msg);
 			/**********************************************/
 		}
 	}
@@ -304,7 +307,7 @@ static int md_disable(void)
  * interface
  */
 
-int video2_md_get_scheduler_time(char *input, scheduler_time_t *st, int *mode)
+int video_md_get_scheduler_time(char *input, scheduler_time_t *st, int *mode)
 {
     char timestr[16];
     char start_hour_str[4]={0};
@@ -375,7 +378,7 @@ int video2_md_get_scheduler_time(char *input, scheduler_time_t *st, int *mode)
     return 0;
 }
 
-int video2_md_check_scheduler_time(scheduler_time_t *st, int *mode)
+int video_md_check_scheduler_time(scheduler_time_t *st, int *mode)
 {
 	int ret = 0;
     time_t timep;
@@ -393,7 +396,7 @@ int video2_md_check_scheduler_time(scheduler_time_t *st, int *mode)
     return ret;
 }
 
-int video2_md_proc(void)
+int video_md_proc(void)
 {
 	int ret;
 	static int status = 0;
@@ -421,16 +424,16 @@ int video2_md_proc(void)
 	return 0;
 }
 
-int video2_md_init(video2_md_config_t *md_config, int width, int height)
+int video_md_init(video_md_config_t *md_config, int width, int height)
 {
 	int ret = 0;
 	int mask;
 	memset(&bmp, 0, sizeof(bmp));
-	memcpy(&config, md_config, sizeof(video2_md_config_t) );
+	memcpy(&config, md_config, sizeof(video_md_config_t) );
 	ret = rts_av_query_isp_md(&attr, width, height);
 	if (ret) {
 		log_qcy(DEBUG_SERIOUS, "query isp md attr fail, ret = %d\n", ret);
-		video2_md_release();
+		video_md_release();
 	}
 	mask = RTS_VIDEO_MD_DATA_TYPE_AVGY |
            RTS_VIDEO_MD_DATA_TYPE_RLTPRE |
@@ -441,7 +444,7 @@ int video2_md_init(video2_md_config_t *md_config, int width, int height)
 	ret = md_enable(config.polling, config.trig, mask, width, height, config.sensitivity, NULL);
 	if (ret) {
 		log_qcy(DEBUG_SERIOUS, "enable md fail\n");
-		video2_md_release();
+		video_md_release();
 	}
 	if (config.polling) {
 		int i;
@@ -458,7 +461,7 @@ int video2_md_init(video2_md_config_t *md_config, int width, int height)
 	return ret;
 }
 
-int video2_md_release(void)
+int video_md_release(void)
 {
 	if( config.polling)
 		rts_av_uninit_md_result(&result);

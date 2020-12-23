@@ -1,12 +1,12 @@
 /*
- * config_video2.h
+ * config_video.h
  *
  *  Created on: Sep 1, 2020
  *      Author: ning
  */
 
-#ifndef SERVER_VIDEO2_CONFIG_H_
-#define SERVER_VIDEO2_CONFIG_H_
+#ifndef SERVER_VIDEO_CONFIG_H_
+#define SERVER_VIDEO_CONFIG_H_
 
 /*
  * header
@@ -20,15 +20,16 @@
 /*
  * define
  */
-#define		CONFIG_VIDEO2_MODULE_NUM			7
+#define		CONFIG_VIDEO_MODULE_NUM			8
 
-#define		CONFIG_VIDEO2_PROFILE				0
-#define		CONFIG_VIDEO2_ISP					1
-#define		CONFIG_VIDEO2_H264					2
-#define		CONFIG_VIDEO2_OSD					3
-#define		CONFIG_VIDEO2_3ACTRL				4
-#define		CONFIG_VIDEO2_JPG					5
-#define		CONFIG_VIDEO2_MD					6
+#define		CONFIG_VIDEO_PROFILE				0
+#define		CONFIG_VIDEO_ISP					1
+#define		CONFIG_VIDEO_H264					2
+#define		CONFIG_VIDEO_OSD					3
+#define		CONFIG_VIDEO_3ACTRL				4
+#define		CONFIG_VIDEO_JPG					5
+#define		CONFIG_VIDEO_MD					6
+#define		CONFIG_VIDEO_SPD					7
 
 #define		AE_AUTO_MODE_NONE					0
 #define		AE_AUTO_MODE_TARGET_DELTA			1
@@ -39,13 +40,14 @@
 #define		AE_MANUAL_MODE_GAIN					6
 #define		AE_MANUAL_MODE_EXPOSURE_TIME 		7
 
-#define 	CONFIG_VIDEO2_PROFILE_PATH			"config/video2_profile.config"
-#define 	CONFIG_VIDEO2_ISP_PATH				"config/video2_isp.config"
-#define 	CONFIG_VIDEO2_H264_PATH				"config/video2_h264.config"
-#define 	CONFIG_VIDEO2_OSD_PATH				"config/video2_osd.config"
-#define 	CONFIG_VIDEO2_3ACTRL_PATH			"config/video2_3actrl.config"
-#define 	CONFIG_VIDEO2_JPG_PATH				"config/video2_jpg.config"
-#define 	CONFIG_VIDEO2_MD_PATH				"config/video2_md.config"
+#define 	CONFIG_VIDEO_PROFILE_PATH			"config/video_profile.config"
+#define 	CONFIG_VIDEO_ISP_PATH				"config/video_isp.config"
+#define 	CONFIG_VIDEO_H264_PATH				"config/video_h264.config"
+#define 	CONFIG_VIDEO_OSD_PATH				"config/video_osd.config"
+#define 	CONFIG_VIDEO_3ACTRL_PATH			"config/video_3actrl.config"
+#define 	CONFIG_VIDEO_JPG_PATH				"config/video_jpg.config"
+#define 	CONFIG_VIDEO_MD_PATH				"config/video_md.config"
+#define 	CONFIG_VIDEO_SPD_PATH				"config/video_spd.config"
 
 /*
  * structure
@@ -81,12 +83,12 @@ typedef struct isp_ae_para_t {
 /*
  *
  */
-typedef struct video2_profile_config_t {
+typedef struct video_profile_config_t {
 	int						quality;
 	struct rts_av_profile	profile[3];
-} video2_profile_config_t;
+} video_profile_config_t;
 
-typedef struct video2_isp_config_t {
+typedef struct video_isp_config_t {
 	struct rts_isp_attr		isp_attr;
 	int						awb_ctrl;
 	int						af;
@@ -104,14 +106,14 @@ typedef struct video2_isp_config_t {
 	int						noise_reduction;
 	int						in_out_door_mode;
 	int						detail_enhancement;
-}video2_isp_config_t;
+}video_isp_config_t;
 
-typedef struct video2_h264_config_t {
+typedef struct video_h264_config_t {
 	struct rts_h264_attr		h264_attr;
 	struct rts_video_h264_ctrl	h264_ctrl;
-} video2_h264_config_t;
+} video_h264_config_t;
 
-typedef struct video2_osd_config_t {
+typedef struct video_osd_config_t {
 	int		enable;
 	int		time_mode;
 	int		time_rotate;
@@ -146,21 +148,21 @@ typedef struct video2_osd_config_t {
 	int		label_flick;
 	int		label_flick_on;
 	int		label_flick_off;
-} video2_osd_config_t;
+} video_osd_config_t;
 
-typedef struct video2_jpg_config_t {
+typedef struct video_jpg_config_t {
 	int		enable;
 	char	image_path[MAX_SYSTEM_STRING_SIZE];
 	struct rts_jpgenc_attr		jpg_ctrl;
-} video2_jpg_config_t;
+} video_jpg_config_t;
 
-typedef struct video2_3actrl_config_t {
+typedef struct video_3actrl_config_t {
 	isp_awb_para_t	awb_para;
 	isp_af_para_t	af_para;
 	isp_ae_para_t	ae_para;
-} video2_3actrl_config_t;
+} video_3actrl_config_t;
 
-typedef struct video2_md_config_t {
+typedef struct video_md_config_t {
 	int 	enable;
 	int		polling;
 	int		trig;
@@ -170,23 +172,36 @@ typedef struct video2_md_config_t {
 	int		recording_length;
 	char	start[MAX_SYSTEM_STRING_SIZE];
 	char	end[MAX_SYSTEM_STRING_SIZE];
-} video2_md_config_t;
+} video_md_config_t;
 
-typedef struct video2_config_t {
+typedef struct video_spd_config_t {
+	int 	enable;
+	int		cloud_report;
+	int		alarm_interval;
+	int		recording_length;
+	int		isp_channel;
+	int		isp_buf_num;
+	int		width;
+	int		height;
+	char	file_path[MAX_SYSTEM_STRING_SIZE*2];
+} video_spd_config_t;
+
+typedef struct video_config_t {
 	int							status;
-	video2_profile_config_t		profile;
-	video2_isp_config_t			isp;
-	video2_h264_config_t			h264;
-	video2_osd_config_t 			osd;
-	video2_3actrl_config_t		a3ctrl;
-	video2_jpg_config_t			jpg;
-	video2_md_config_t			md;
-} video2_config_t;
+	video_profile_config_t		profile;
+	video_isp_config_t			isp;
+	video_h264_config_t			h264;
+	video_osd_config_t 			osd;
+	video_3actrl_config_t		a3ctrl;
+	video_jpg_config_t			jpg;
+	video_md_config_t			md;
+	video_spd_config_t			spd;
+} video_config_t;
 
 /*
  * function
  */
-int video2_config_video_read(video2_config_t *vconf);
-int video2_config_video_set(int module, void *t);
+int video_config_video_read(video_config_t *vconf);
+int video_config_video_set(int module, void *t);
 
-#endif /* SERVER_VIDEO2_CONFIG_H_ */
+#endif /* SERVER_VIDEO_CONFIG_H_ */

@@ -20,7 +20,6 @@
 //server header
 #include "focus.h"
 
-
 /*
  * static
  */
@@ -45,7 +44,7 @@ static int focus_set(int ws, int wn)
 /*
  * interface
  */
-int video2_focus_proc(isp_af_para_t *ctrl, int frame)
+int video_focus_proc(isp_af_para_t *ctrl, int frame)
 {
 	int ret=0;
 	struct rts_isp_awb_gain ct_gain;
@@ -61,7 +60,7 @@ int video2_focus_proc(isp_af_para_t *ctrl, int frame)
 	return ret;
 }
 
-int video2_focus_init(isp_af_para_t *ctrl)
+int video_focus_init(isp_af_para_t *ctrl)
 {
 	int ret=0;
     last_frame = 0;
@@ -74,7 +73,7 @@ int video2_focus_init(isp_af_para_t *ctrl)
 	return ret;
 }
 
-int video2_focus_release(void)
+int video_focus_release(void)
 {
 	int ret=0;
     last_frame = 0;

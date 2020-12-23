@@ -32,6 +32,6 @@ typedef struct my_error_mgr * my_error_ptr;
 /*
  * function
  */
-int video2_jpeg_thumbnail(const char* input, int w, int h);
+int video_jpeg_thumbnail(const char* input, int w, int h);
 
 #endif /* SERVER_VIDEO_JPEG_H_ */

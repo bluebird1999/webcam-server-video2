@@ -11,7 +11,7 @@
 /*
  * header
  */
-#include "config.h"
+#include "../video/config.h"
 
 /*
  * define
@@ -25,8 +25,8 @@
 /*
  * function
  */
-int video2_white_balance_int(isp_awb_para_t *ctrl);
-int video2_white_balance_release(void);
-int video2_white_balance_proc(isp_awb_para_t *ctrl, int frame);
+int video_white_balance_int(isp_awb_para_t *ctrl);
+int video_white_balance_release(void);
+int video_white_balance_proc(isp_awb_para_t *ctrl, int frame);
 
 #endif /* SERVER_VIDEO_WHITE_BALANCE_H_ */
