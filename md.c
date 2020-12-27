@@ -17,6 +17,7 @@
 #include <rtsvideo.h>
 #include <rtsbmp.h>
 #include <malloc.h>
+
 //program header
 #include "../../tools/tools_interface.h"
 #include "../../server/miio/miio_interface.h"
@@ -382,15 +383,15 @@ int video_md_check_scheduler_time(scheduler_time_t *st, int *mode)
 {
 	int ret = 0;
     time_t timep;
-    struct tm  *tv;
+    struct tm  tv={0};
     int	start, end, now;
 
 	if( *mode==0 ) return 1;
     timep = time(NULL);
-    tv = localtime(&timep);
+    localtime_r(&timep, &tv);
     start = st->start_hour * 3600 + st->start_min * 60 + st->start_sec;
     end = st->stop_hour * 3600 + st->stop_min * 60 + st->stop_sec;
-    now = tv->tm_hour * 3600 + tv->tm_min * 60 + tv->tm_sec;
+    now = tv.tm_hour * 3600 + tv.tm_min * 60 + tv.tm_sec;
     if( now >= start && now <= end ) return 1;
     else if( now > end) return 2;
     return ret;

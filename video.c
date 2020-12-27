@@ -10,6 +10,8 @@
  */
 //system header
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <pthread.h>
 #include <signal.h>
 #include <stdint.h>
@@ -21,6 +23,8 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <dirent.h>
+#include <malloc.h>
+
 //program header
 #include "../../manager/manager_interface.h"
 #include "../../server/realtek/realtek_interface.h"
@@ -240,8 +244,8 @@ static int video_set_property(message_t *msg)
 			}
 		}
 	}
-	else if( info.task.msg.arg_in.cat == VIDEO_PROPERTY_TIME_WATERMARK ) {
-		temp = *((int*)(info.task.msg.arg));
+	else if( msg->arg_in.cat == VIDEO_PROPERTY_TIME_WATERMARK ) {
+		temp = *((int*)(msg->arg));
 		if( temp != config.osd.enable ) {
 			config.osd.enable = temp;
 			log_qcy(DEBUG_INFO, "changed the osd switch = %d", config.osd.enable);
@@ -251,8 +255,8 @@ static int video_set_property(message_t *msg)
 			send_msg.arg_size = sizeof(temp);
 		}
 	}
-	else if( info.task.msg.arg_in.cat == VIDEO_PROPERTY_MOTION_SWITCH ) {
-		temp = *((int*)(info.task.msg.arg));
+	else if( msg->arg_in.cat == VIDEO_PROPERTY_MOTION_SWITCH ) {
+		temp = *((int*)(msg->arg));
 		if( temp != config.md.enable ) {
 			config.md.enable = temp;
 			config.spd.enable = temp;
@@ -263,8 +267,8 @@ static int video_set_property(message_t *msg)
 			send_msg.arg_size = sizeof(temp);
 		}
 	}
-	else if( info.task.msg.arg_in.cat == VIDEO_PROPERTY_MOTION_ALARM_INTERVAL ) {
-		temp = *((int*)(info.task.msg.arg));
+	else if( msg->arg_in.cat == VIDEO_PROPERTY_MOTION_ALARM_INTERVAL ) {
+		temp = *((int*)(msg->arg));
 		if( temp != config.md.alarm_interval ) {
 			config.md.alarm_interval = temp;
 			config.spd.alarm_interval = temp;
@@ -276,8 +280,8 @@ static int video_set_property(message_t *msg)
 			md_run.changed = 1;
 		}
 	}
-	else if( info.task.msg.arg_in.cat == VIDEO_PROPERTY_MOTION_SENSITIVITY ) {
-		temp = *((int*)(info.task.msg.arg));
+	else if( msg->arg_in.cat == VIDEO_PROPERTY_MOTION_SENSITIVITY ) {
+		temp = *((int*)(msg->arg));
 		if( temp != config.md.sensitivity ) {
 			config.md.sensitivity = temp;
 			log_qcy(DEBUG_INFO, "changed the motion detection sensitivity = %d", config.md.sensitivity);
@@ -288,9 +292,9 @@ static int video_set_property(message_t *msg)
 			md_run.changed = 1;
 		}
 	}
-	else if( info.task.msg.arg_in.cat == VIDEO_PROPERTY_MOTION_START ) {
-		if( strcmp(config.md.start, (char*)(info.task.msg.arg)) ) {
-			strcpy( config.md.start, (char*)(info.task.msg.arg) );
+	else if( msg->arg_in.cat == VIDEO_PROPERTY_MOTION_START ) {
+		if( strcmp(config.md.start, (char*)(msg->arg)) ) {
+			strcpy( config.md.start, (char*)(msg->arg) );
 			log_qcy(DEBUG_INFO, "changed the motion detection start = %s", config.md.start);
 			video_config_video_set(CONFIG_VIDEO_MD, &config.md);
 			md_init_scheduler();
@@ -299,9 +303,9 @@ static int video_set_property(message_t *msg)
 			send_msg.arg_size = sizeof(config.md.start);
 		}
 	}
-	else if( info.task.msg.arg_in.cat == VIDEO_PROPERTY_MOTION_END ) {
-		if( strcmp(config.md.end, (char*)(info.task.msg.arg)) ) {
-			strcpy( config.md.end, (char*)(info.task.msg.arg) );
+	else if( msg->arg_in.cat == VIDEO_PROPERTY_MOTION_END ) {
+		if( strcmp(config.md.end, (char*)(msg->arg)) ) {
+			strcpy( config.md.end, (char*)(msg->arg) );
 			log_qcy(DEBUG_INFO, "changed the motion detection end = %s", config.md.end);
 			video_config_video_set(CONFIG_VIDEO_MD, &config.md);
 			md_init_scheduler();
@@ -310,8 +314,8 @@ static int video_set_property(message_t *msg)
 			send_msg.arg_size = sizeof(config.md.end);
 		}
 	}
-	else if( info.task.msg.arg_in.cat == VIDEO_PROPERTY_CUSTOM_WARNING_PUSH ) {
-		temp = *((int*)(info.task.msg.arg));
+	else if( msg->arg_in.cat == VIDEO_PROPERTY_CUSTOM_WARNING_PUSH ) {
+		temp = *((int*)(msg->arg));
 		if( temp != config.md.cloud_report ) {
 			config.md.cloud_report = temp;
 			config.spd.cloud_report = temp;
@@ -323,8 +327,8 @@ static int video_set_property(message_t *msg)
 			md_run.changed = 1;
 		}
 	}
-	else if( info.task.msg.arg_in.cat == VIDEO_PROPERTY_IMAGE_ROLLOVER ) {
-		temp = *((int*)(info.task.msg.arg));
+	else if( msg->arg_in.cat == VIDEO_PROPERTY_IMAGE_ROLLOVER ) {
+		temp = *((int*)(msg->arg));
 		if( ( (temp==0) && ( (config.isp.flip!=0) || (config.isp.mirror!=0) ) ) ||
 				( (temp==180) && ( (config.isp.flip!=1) || (config.isp.mirror!=1) ) ) ) {
 			if( temp == 0 )  {
@@ -613,7 +617,11 @@ static void *video_spd_func(void *arg)
     //init
     memcpy( &ctrl, (video_spd_config_t*)arg, sizeof(video_spd_config_t) );
 //  msg_buffer_init2(&video_buff, MSG_BUFFER_OVERFLOW_YES, &vmutex);
-    video_spd_init( &ctrl, &md_src, &pd_src);
+    ret = video_spd_init( &ctrl, &md_src, &pd_src);
+    if( ret ) {
+    	log_qcy(DEBUG_INFO, "video human detection thread init failed!");
+    	goto exit;
+    }
     server_set_status(STATUS_TYPE_THREAD_START, THREAD_SPD, 1 );
     manager_common_send_dummy(SERVER_VIDEO);
     while( 1 ) {
@@ -646,6 +654,7 @@ static void *video_spd_func(void *arg)
     video_spd_release();
 //  msg_buffer_release2(&video_buff, &vmutex);
     server_set_status(STATUS_TYPE_THREAD_START, THREAD_SPD, 0 );
+exit:
     manager_common_send_dummy(SERVER_VIDEO);
     log_qcy(DEBUG_INFO, "-----------thread exit: %s-----------",fname);
     pthread_exit(0);
@@ -1207,6 +1216,7 @@ static void server_release_2(void)
 
 static void server_release_3(void)
 {
+	msg_free(&info.task.msg);
 	memset(&info, 0, sizeof(server_info_t));
 }
 
@@ -1251,15 +1261,17 @@ static int server_message_proc(void)
 	}
 	log_qcy(DEBUG_VERBOSE, "-----pop out from the VIDEO message queue: sender=%d, message=%x, ret=%d, head=%d, tail=%d", msg.sender, msg.message,
 				ret, message.head, message.tail);
-	msg_init(&info.task.msg);
-	msg_deep_copy(&info.task.msg, &msg);
 	switch(msg.message) {
 		case MSG_VIDEO_START:
+			msg_init(&info.task.msg);
+			msg_copy(&info.task.msg, &msg);
 			info.task.func = task_start;
 			info.task.start = info.status;
 			info.msg_lock = 1;
 			break;
 		case MSG_VIDEO_STOP:
+			msg_init(&info.task.msg);
+			msg_copy(&info.task.msg, &msg);
 			info.task.msg.arg_in.cat = info.status2;
 			if( msg.sender == SERVER_MISS) misc_set_bit(&info.task.msg.arg_in.cat, (RUN_MODE_MISS + msg.arg_in.wolf), 0);
 			if( msg.sender == SERVER_MICLOUD) misc_set_bit(&info.task.msg.arg_in.cat, RUN_MODE_MICLOUD, 0);
@@ -1270,6 +1282,8 @@ static int server_message_proc(void)
 			info.msg_lock = 1;
 			break;
 		case MSG_MANAGER_EXIT:
+			msg_init(&info.task.msg);
+			msg_copy(&info.task.msg, &msg);
 			info.task.func = task_exit;
 			info.status = EXIT_INIT;
 			info.msg_lock = 0;
@@ -1309,6 +1323,8 @@ static int server_message_proc(void)
 			ret = video_get_property(&msg);
 			break;
 		case MSG_VIDEO_PROPERTY_SET_EXT:
+			msg_init(&info.task.msg);
+			msg_deep_copy(&info.task.msg, &msg);
 			info.task.func = task_control_ext;
 			info.task.start = info.status;
 			info.msg_lock = 1;

@@ -10,13 +10,27 @@
  */
 //system header
 #include <stdio.h>
-#include <time.h>
 #include <stdlib.h>
 #include <rtscamkit.h>
 #include <rtsavapi.h>
 #include <rtsvideo.h>
-#include <rtsbmp.h>
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <unistd.h>
+#include <sys/time.h>
+#include <time.h>
+#include <pthread.h>
+#include <math.h>
+#include <signal.h>
+#include <rtsavapi.h>
+#include <rtsvideo.h>
+#include <rtscolor.h>
+#include <rtscamkit.h>
+#include <getopt.h>
 #include <malloc.h>
+
 //program header
 #include "../../tools/tools_interface.h"
 #include "../../server/miio/miio_interface.h"

@@ -20,6 +20,8 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <dirent.h>
+#include <malloc.h>
+
 //program header
 #include "../../manager/manager_interface.h"
 #include "../../tools/tools_interface.h"
