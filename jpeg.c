@@ -102,7 +102,12 @@ static unsigned char* video_jpeg_read(const char* path, int *width, int *height)
 	unsigned long dataSize = w * h * numChannels;
 	// read RGB(A) scanlines one at a time into jdata[]
 	unsigned char *data = (unsigned char *)malloc( dataSize );
-	if(!data) return NULL;
+	if(!data) {
+		log_qcy(DEBUG_INFO, "jpeg_start_decompress failed\n");
+		fclose(file);
+		jpeg_destroy_decompress(&info);
+		return NULL;
+	}
 	unsigned char* rowptr;
 	while ( info.output_scanline < h ) {
 		rowptr = data + info.output_scanline * w * numChannels;
@@ -203,8 +208,8 @@ exit:
 	 char temp[MAX_SYSTEM_STRING_SIZE*4];
 	 int ret = 0;
 	 int width = 0, height = 0;
-	 unsigned char* buff = NULL;
-	 unsigned char * img_buf = NULL;
+	 unsigned char *buff = NULL;
+	 unsigned char *img_buf = NULL;
 	 if(input == NULL)
     	return -1;
 	 memset(fname, 0, sizeof(fname));
@@ -219,9 +224,7 @@ exit:
     img_buf = video_jpeg_stretch_linear(w, h, 24, buff,  width, height);
     free(buff);
     ret = video_jpeg_write(fname, img_buf, 60, h, w);
-    if( img_buf )
-    	free(img_buf);
-
+    free(img_buf);
     if(!ret){
         return 0;
     }
