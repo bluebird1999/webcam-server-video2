@@ -1,12 +1,12 @@
 /*
- * osd.h
+ * osd2.h
  *
  *  Created on: Sep 9, 2020
  *      Author: ning
  */
 
-#ifndef SERVER_VIDEO_OSD_H_
-#define SERVER_VIDEO_OSD_H_
+#ifndef SERVER_VIDEO2_OSD_H_
+#define SERVER_VIDEO2_OSD_H_
 
 /*
  * header
@@ -26,7 +26,7 @@
 /*
  * structure
  */
-typedef struct osd_run_t {
+typedef struct osd2_run_t {
     int							stream;
 	struct rts_video_osd2_attr 	*osd_attr;
 	unsigned char				*ipattern;
@@ -42,16 +42,16 @@ typedef struct osd_run_t {
     int							offset_y;
     int							width;
     int							height;
-} osd_run_t;
+} osd2_run_t;
 /*
  * function
  */
-int video_osd_init(video_osd_config_t *ctrl, int stream, int width, int height);
-int video_osd_release(void);
-int video_osd_proc(video_osd_config_t *ctrl);
-int video_osd_stop(video_osd_config_t *ctrl);
-int video_osd_font_release(void);
-int video_osd_font_init(video_osd_config_t *ctrl);
+int video2_osd_init(video2_osd_config_t *ctrl, int stream, int width, int height);
+int video2_osd_release(void);
+int video2_osd_proc(video2_osd_config_t *ctrl);
+int video2_osd_stop(video2_osd_config_t *ctrl);
+int video2_osd_font_release(void);
+int video2_osd_font_init(video2_osd_config_t *ctrl);
 
 
-#endif /* SERVER_VIDEO_OSD_H_ */
+#endif /* SERVER_VIDEO2_OSD_H_ */
