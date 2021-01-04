@@ -17,7 +17,9 @@
 #include <rtsvideo.h>
 #include <rtsbmp.h>
 #include <malloc.h>
-
+#ifdef DMALLOC_ENABLE
+#include <dmalloc.h>
+#endif
 //program header
 #include "../../tools/tools_interface.h"
 #include "../../server/miio/miio_interface.h"

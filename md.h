@@ -11,7 +11,7 @@
 /*
  * header
  */
-#include "../video/config.h"
+#include "config.h"
 
 /*
  * define

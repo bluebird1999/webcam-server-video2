@@ -30,7 +30,9 @@
 #include <rtscamkit.h>
 #include <getopt.h>
 #include <malloc.h>
-
+#ifdef DMALLOC_ENABLE
+#include <dmalloc.h>
+#endif
 //program header
 #include "../../tools/tools_interface.h"
 //server header
@@ -265,10 +267,10 @@ int video_osd_proc(video_osd_config_t *ctrl)
 	//**color
 	now = time(NULL);
 	localtime_r(&now, &tm);
-	if( (tm.tm_hour >= 19) || (tm.tm_hour <= 7) )
+//	if( (tm.tm_hour >= 19) || (tm.tm_hour <= 7) )
 		osd_run.color = 0xFF;
-	else
-		osd_run.color = 0x00;
+//	else
+//		osd_run.color = 0x00;
 	//***
 	sprintf(now_time, "%04d-%02d-%02d %02d:%02d:%02d", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
 			tm.tm_hour, tm.tm_min, tm.tm_sec);
@@ -302,10 +304,10 @@ int video_osd_init(video_osd_config_t *ctrl, int stream, int width, int height)
 	//**color
 	now = time(NULL);
 	localtime_r(&now, &tm);
-	if( (tm.tm_hour >= 19) || (tm.tm_hour <= 7) )
-		osd_run.color = 0xFF;
-	else
-		osd_run.color = 0x00;
+//	if( (tm.tm_hour >= 19) || (tm.tm_hour <= 7) )
+	osd_run.color = 0xFF;
+//	else
+//		osd_run.color = 0x00;
 	//***
 	osd_run.width = width;
 	osd_run.height = height;

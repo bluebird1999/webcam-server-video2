@@ -21,7 +21,9 @@
 #include <unistd.h>
 #include <dirent.h>
 #include <malloc.h>
-
+#ifdef DMALLOC_ENABLE
+#include <dmalloc.h>
+#endif
 //program header
 #include "../../manager/manager_interface.h"
 #include "../../tools/tools_interface.h"
@@ -224,7 +226,7 @@ exit:
     img_buf = video_jpeg_stretch_linear(w, h, 24, buff,  width, height);
     free(buff);
     ret = video_jpeg_write(fname, img_buf, 60, h, w);
-    free(img_buf);
+   	free(img_buf);
     if(!ret){
         return 0;
     }

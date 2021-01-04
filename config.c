@@ -14,7 +14,9 @@
 #include <stdio.h>
 #include <rtsvideo.h>
 #include <malloc.h>
-
+#ifdef DMALLOC_ENABLE
+#include <dmalloc.h>
+#endif
 //program header
 #include "../../tools/tools_interface.h"
 #include "../../manager/manager_interface.h"

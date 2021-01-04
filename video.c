@@ -24,7 +24,9 @@
 #include <unistd.h>
 #include <dirent.h>
 #include <malloc.h>
-
+#ifdef DMALLOC_ENABLE
+#include <dmalloc.h>
+#endif
 //program header
 #include "../../manager/manager_interface.h"
 #include "../../server/realtek/realtek_interface.h"
@@ -43,7 +45,6 @@
 #include "isp.h"
 #include "jpeg.h"
 #include "md.h"
-#include "spd.h"
 #include "white_balance.h"
 
 /*
@@ -84,7 +85,6 @@ static int write_video_buffer(av_packet_t *data, int id, int target, int type);
 static void write_video_info(struct rts_av_buffer *data, av_data_info_t *info);
 static int *video_3acontrol_func(void *arg);
 static int *video_osd_func(void *arg);
-static void *video_spd_func(void *arg);
 static int stream_init(void);
 static int stream_destroy(void);
 static int stream_start(void);
@@ -259,7 +259,6 @@ static int video_set_property(message_t *msg)
 		temp = *((int*)(msg->arg));
 		if( temp != config.md.enable ) {
 			config.md.enable = temp;
-			config.spd.enable = temp;
 			log_qcy(DEBUG_INFO, "changed the motion switch = %d", config.md.enable);
 			video_config_video_set(CONFIG_VIDEO_MD, &config.md);
 			send_msg.arg_in.wolf = 1;
@@ -271,7 +270,6 @@ static int video_set_property(message_t *msg)
 		temp = *((int*)(msg->arg));
 		if( temp != config.md.alarm_interval ) {
 			config.md.alarm_interval = temp;
-			config.spd.alarm_interval = temp;
 			log_qcy(DEBUG_INFO, "changed the motion detection alarm interval = %d", config.md.alarm_interval);
 			video_config_video_set(CONFIG_VIDEO_MD, &config.md);
 			send_msg.arg_in.wolf = 1;
@@ -318,7 +316,6 @@ static int video_set_property(message_t *msg)
 		temp = *((int*)(msg->arg));
 		if( temp != config.md.cloud_report ) {
 			config.md.cloud_report = temp;
-			config.spd.cloud_report = temp;
 			log_qcy(DEBUG_INFO, "changed the motion detection cloud push = %d", config.md.cloud_report);
 			video_config_video_set(CONFIG_VIDEO_MD, &config.md);
 			send_msg.arg_in.wolf = 1;
@@ -367,7 +364,7 @@ static void *video_jpeg_func(void *arg)
     pthread_detach(pthread_self());
     msg_init(&send_msg);
     //init
-    ret = video_jpeg_thumbnail((char*)arg, 270, 180);
+//  ret = video_jpeg_thumbnail((char*)arg, 270, 180);
     //release
 exit:
 	if( arg )
@@ -420,8 +417,8 @@ static void video_mjpeg_func(void *priv, struct rts_av_profile *profile, struct 
 		log_qcy(DEBUG_WARNING, "open video jpg snapshot file %s fail\n", (char*)priv);
 		return;
     }
-    if( !video_check_sd() )
-    	fwrite(buffer->vm_addr, 1, buffer->bytesused, pfile);
+//    if( !video_check_sd() )
+   	fwrite(buffer->vm_addr, 1, buffer->bytesused, pfile);
     RTS_SAFE_RELEASE(pfile, fclose);
     return;
 }
@@ -439,6 +436,10 @@ static int video_snapshot(message_t *msg)
 	if( msg->arg_in.chick == RECORDER_TYPE_MOTION_DETECTION ) {
 		memset( filename, 0, sizeof(filename) );
 		sprintf( filename, "%smotion.jpg", config.jpg.image_path );
+	}
+	else if( msg->arg_in.chick == RECORDER_TYPE_HUMAN_DETECTION ) {
+		memset( filename, 0, sizeof(filename) );
+		sprintf( filename, "%smotion_spd.jpg", config.jpg.image_path );
 	}
 	else {
 		memset(filename, 0, sizeof(filename));
@@ -479,27 +480,20 @@ static int md_check_scheduler(void)
 {
 	int ret;
 	message_t msg;
-	pthread_t md_id, spd_id;
+	pthread_t md_id;
 	if( config.md.enable ) {
 		ret = video_md_check_scheduler_time(&md_run.scheduler, &md_run.mode);
 		if( ret==1 ) {
-			if( !md_run.started && !misc_get_bit(info.thread_start, THREAD_MD) &&
-					!misc_get_bit(info.thread_start, THREAD_SPD) ) {
+			if( !md_run.started && !misc_get_bit(info.thread_start, THREAD_MD) ) {
 				//start the md thread
 				ret = pthread_create(&md_id, NULL, video_md_func, (void*)&config.md);
-				config.spd.alarm_interval = config.md.alarm_interval;
-				config.spd.cloud_report = config.md.cloud_report;
-				config.spd.enable = config.md.enable;
-				config.spd.recording_length = config.md.recording_length;
-				ret |= pthread_create(&spd_id, NULL, video_spd_func, (void*)&config.spd);
 				if(ret != 0) {
 					misc_set_bit( &info.thread_exit, THREAD_MD, 1);
-					misc_set_bit( &info.thread_exit, THREAD_SPD, 1);
-					log_qcy(DEBUG_SERIOUS, "md or spd thread create error! ret = %d",ret);
+					log_qcy(DEBUG_SERIOUS, "md thread create error! ret = %d",ret);
 					return -1;
 				}
 				else {
-					log_qcy(DEBUG_INFO, "md and spd thread create successful!");
+					log_qcy(DEBUG_INFO, "md thread create successful!");
 					md_run.started = 1;
 				    /********message body********/
 					msg_init(&msg);
@@ -534,25 +528,6 @@ stop_md:
 	msg.sender = msg.receiver = SERVER_VIDEO;
 	manager_common_send_message(SERVER_VIDEO, &msg);
 	/****************************/
-	return ret;
-}
-
-static int server_video_spd_video_message(message_t *msg)
-{
-	int ret = 0;
-	pthread_mutex_lock(&vmutex);
-	if( (!video_buff.init) ) {
-		log_qcy(DEBUG_WARNING, "video spd is not ready for message processing!");
-		pthread_mutex_unlock(&vmutex);
-		return MISS_LOCAL_ERR_AV_NOT_RUN;
-	}
-	ret = msg_buffer_push(&video_buff, msg);
-	if( ret!=0 )
-		log_qcy(DEBUG_INFO, "message push in video spd error =%d", ret);
-	else {
-		pthread_cond_signal(&vcond);
-	}
-	pthread_mutex_unlock(&vmutex);
 	return ret;
 }
 
@@ -597,68 +572,6 @@ static int *video_md_func(void *arg)
     pthread_exit(0);
 }
 
-static void *video_spd_func(void *arg)
-{
-	int st;
-	int ret;
-//	message_t msg;
-	video_spd_config_t ctrl;
-	rts_md_src md_src;
-	rts_pd_src pd_src;
-	char fname[MAX_SYSTEM_STRING_SIZE];
-    signal(SIGINT, server_thread_termination);
-    signal(SIGTERM, server_thread_termination);
-    signal(SIGSEGV, signal_handler);
-    signal(SIGFPE,  signal_handler);
-    signal(SIGBUS,  signal_handler);
-    sprintf(fname, "spd-%d",time_get_now_stamp());
-    misc_set_thread_name(fname);
-    pthread_detach(pthread_self());
-    //init
-    memcpy( &ctrl, (video_spd_config_t*)arg, sizeof(video_spd_config_t) );
-//  msg_buffer_init2(&video_buff, MSG_BUFFER_OVERFLOW_YES, &vmutex);
-    ret = video_spd_init( &ctrl, &md_src, &pd_src);
-    if( ret ) {
-    	log_qcy(DEBUG_INFO, "video human detection thread init failed!");
-    	goto exit;
-    }
-    server_set_status(STATUS_TYPE_THREAD_START, THREAD_SPD, 1 );
-    manager_common_send_dummy(SERVER_VIDEO);
-    while( 1 ) {
-    	st = info.status;
-    	if( info.exit )
-    		break;
-    	if( !md_run.started )
-    		break;
-    	if( (st != STATUS_START) && (st != STATUS_RUN) )
-    		break;
-    	else if( st == STATUS_START )
-    		continue;
-    	if( misc_get_bit(info.thread_exit, THREAD_SPD) )
-    		break;
-    	//condition
-/*    	pthread_mutex_lock(&vmutex);
-    	if( video_buff.head == video_buff.tail ) {
-			pthread_cond_wait(&vcond, &vmutex);
-    	}
-    	msg_init(&msg);
-    	ret = msg_buffer_pop(&video_buff, &msg);
-    	pthread_mutex_unlock(&vmutex);
-    	if( ret )
-    		continue;
-*/
-    	ret = video_spd_proc( &ctrl, &md_src, &pd_src);
-//    	msg_free(&msg);
-    }
-    //release
-    video_spd_release();
-//  msg_buffer_release2(&video_buff, &vmutex);
-    server_set_status(STATUS_TYPE_THREAD_START, THREAD_SPD, 0 );
-exit:
-    manager_common_send_dummy(SERVER_VIDEO);
-    log_qcy(DEBUG_INFO, "-----------thread exit: %s-----------",fname);
-    pthread_exit(0);
-}
 
 static int *video_3acontrol_func(void *arg)
 {
@@ -733,7 +646,7 @@ static int *video_osd_func(void *arg)
     	else if( st == STATUS_START )
     		continue;
    		ret = video_osd_proc(&ctrl);
-    	usleep(1000*100);
+    	usleep(1000*500);
     }
     //release
 exit:
@@ -1091,6 +1004,23 @@ static int video_init(void)
    	}
    	md_init_scheduler();
 	video_isp_init(&config.isp);
+	//nodify device
+	message_t dev_send_msg;
+	device_iot_config_t device_iot_tmp;
+	msg_init(&dev_send_msg);
+	memset(&device_iot_tmp, 0 , sizeof(device_iot_config_t));
+	if(config.isp.ir_mode == VIDEO_ISP_IR_AUTO)
+		device_iot_tmp.day_night_mode = DAY_NIGHT_AUTO;
+	else if(config.isp.ir_mode == RTS_ISP_IR_DAY)
+		device_iot_tmp.day_night_mode = DAY_NIGHT_OFF;
+	else if(config.isp.ir_mode == RTS_ISP_IR_NIGHT)
+		device_iot_tmp.day_night_mode = DAY_NIGHT_ON;
+	dev_send_msg.message = MSG_DEVICE_CTRL_DIRECT;
+	dev_send_msg.sender = dev_send_msg.receiver = SERVER_VIDEO;
+	dev_send_msg.arg = (void*)&device_iot_tmp;
+	dev_send_msg.arg_in.cat = DEVICE_CTRL_DAY_NIGHT_MODE;
+	dev_send_msg.arg_size = sizeof(device_iot_config_t);
+	manager_common_send_message(SERVER_DEVICE, &dev_send_msg);
 	return 0;
 }
 
@@ -1141,9 +1071,6 @@ static int write_video_buffer( av_packet_t *data, int id, int target, int channe
 		ret = server_micloud_video_message(&msg);
 	else if( target == SERVER_RECORDER )
 		ret = server_recorder_video_message(&msg);
-	else if( target == SERVER_VIDEO )
-		ret = server_video_spd_video_message(&msg);
-	/****************************/
 	return ret;
 }
 
@@ -1557,7 +1484,7 @@ static void task_start(void)
 			server_none();
 			break;
 		case STATUS_WAIT:
-			info.status = STATUS_WAIT;
+			info.status = STATUS_SETUP;
 			break;
 		case STATUS_SETUP:
 			server_setup();
@@ -1585,11 +1512,17 @@ exit:
 	if( msg.result == 0 ) {
 		if( info.task.msg.sender == SERVER_MISS ) {
 			video_add_session(info.task.msg.arg_in.handler, info.task.msg.arg_in.wolf);
+			misc_set_bit(&info.status2, (RUN_MODE_MISS + info.task.msg.arg_in.wolf), 1);
 		}
-		if( info.task.msg.sender == SERVER_MISS) misc_set_bit(&info.status2, (RUN_MODE_MISS + info.task.msg.arg_in.wolf), 1);
-		if( info.task.msg.sender == SERVER_MICLOUD) misc_set_bit(&info.status2, RUN_MODE_MICLOUD, 1);
-		if( info.task.msg.sender == SERVER_RECORDER) misc_set_bit(&info.status2, (RUN_MODE_SAVE + info.task.msg.arg_in.wolf), 1);
-		if( info.task.msg.sender == SERVER_VIDEO) misc_set_bit(&info.status2, RUN_MODE_MOTION, 1);
+		if( info.task.msg.sender == SERVER_RECORDER) {
+			misc_set_bit(&info.status2, (RUN_MODE_SAVE + info.task.msg.arg_in.wolf), 1);
+		}
+		if( info.task.msg.sender == SERVER_MICLOUD) {
+			misc_set_bit(&info.status2, RUN_MODE_MICLOUD, 1);
+		}
+		if( info.task.msg.sender == SERVER_VIDEO) {
+			misc_set_bit(&info.status2, RUN_MODE_MOTION, 1);
+		}
 	}
 	manager_common_send_message(info.task.msg.receiver, &msg);
 	msg_free(&info.task.msg);
