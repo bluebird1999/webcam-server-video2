@@ -206,9 +206,6 @@ static int *video2_osd_func(void *arg)
 	video2_osd_config_t ctrl;
     signal(SIGINT, server_thread_termination);
     signal(SIGTERM, server_thread_termination);
-    signal(SIGSEGV, signal_handler);
-    signal(SIGFPE,  signal_handler);
-    signal(SIGBUS,  signal_handler);
     misc_set_thread_name("server_video2_osd");
     pthread_detach(pthread_self());
     //init
@@ -250,9 +247,6 @@ static int *video2_main_func(void* arg)
 	struct rts_av_buffer *buffer = NULL;
     signal(SIGINT, server_thread_termination);
     signal(SIGTERM, server_thread_termination);
-    signal(SIGSEGV, signal_handler);
-    signal(SIGFPE,  signal_handler);
-    signal(SIGBUS,  signal_handler);
     misc_set_thread_name("server_video2_main");
     pthread_detach(pthread_self());
     //init
@@ -279,48 +273,63 @@ static int *video2_main_func(void* arg)
     		continue;
     	}
     	if ( buffer ) {
-        	packet = av_buffer_get_empty(&v2buffer, &qos.buffer_overrun, &qos.buffer_success);
         	if( (buffer->bytesused > 200*1024) ) {
-    			log_qcy(DEBUG_WARNING, "realtek video2 frame size=%d!!!!!!", buffer->bytesused);
-    			rts_av_put_buffer(buffer);
-    			continue;
+    			log_qcy(DEBUG_WARNING, "+++++++++++++++++realtek video2 frame size=%d!!!!!!", buffer->bytesused);
+//    			rts_av_put_buffer(buffer);
+ //   			continue;
         	}
         	if( misc_mips_address_check((unsigned int)buffer->vm_addr) ) {
     			log_qcy(DEBUG_WARNING, "realtek video2 memory address anomity =%p!!!!!!", buffer->vm_addr);
     			rts_av_put_buffer(buffer);
     			continue;
         	}
-    		packet->data = malloc( buffer->bytesused );
-    		if( packet->data == NULL) {
-    			log_qcy(DEBUG_WARNING, "allocate memory failed in video buffer, size=%d", buffer->bytesused);
-    			rts_av_put_buffer(buffer);
-    			continue;
-    		}
-    		memcpy(packet->data, buffer->vm_addr, buffer->bytesused);
+        	if( _config_.memory_mode == MEMORY_MODE_SHARED ) {
+				packet = av_buffer_get_empty(&v2buffer, &qos.buffer_overrun, &qos.buffer_success);
+				if( packet == NULL ) {
+					log_qcy(DEBUG_INFO, "-------------VIDEO2 buffer overrun!!!---");
+					rts_av_put_buffer(buffer);
+					continue;
+				}
+				packet->data = malloc( buffer->bytesused );
+				if( packet->data == NULL) {
+					log_qcy(DEBUG_WARNING, "allocate memory failed in video buffer, size=%d", buffer->bytesused);
+					rts_av_put_buffer(buffer);
+					continue;
+				}
+				memcpy(packet->data, buffer->vm_addr, buffer->bytesused);
+        	}
+        	else {
+        		packet = &(v2buffer.packet[0]);
+        		packet->data = buffer->vm_addr;
+        	}
     		if( (stream.realtek_stamp == 0) && (stream.unix_stamp == 0) ) {
     			stream.realtek_stamp = buffer->timestamp;
     			stream.unix_stamp = time_get_now_stamp();
     		}
     		write_video2_info( buffer, &packet->info);
-    		rts_av_put_buffer(buffer);
     		for(i=0;i<MAX_SESSION_NUMBER;i++) {
 				if( misc_get_bit(info.status2, RUN_MODE_MISS2+i) ) {
 					ret = write_video2_buffer(packet, MSG_MISS_VIDEO_DATA, SERVER_MISS, i);
 					if( (ret == MISS_LOCAL_ERR_MISS_GONE) || (ret == MISS_LOCAL_ERR_SESSION_GONE) ) {
 						log_qcy(DEBUG_WARNING, "Miss video ring buffer send failed due to non-existing miss server or session");
 						video2_quit_send(SERVER_MISS, i);
-						log_qcy(DEBUG_WARNING, "----shut down video miss stream due to session lost!------");
+						log_qcy(DEBUG_WARNING, "----shut down video2 miss stream due to session lost!------");
 					}
 					else if( ret == MISS_LOCAL_ERR_AV_NOT_RUN) {
 						qos.failed_send[RUN_MODE_MISS2+i]++;
 						if( qos.failed_send[RUN_MODE_MISS2+i] > VIDEO_MAX_FAILED_SEND) {
 							qos.failed_send[RUN_MODE_MISS2+i] = 0;
 							video2_quit_send(SERVER_MISS, i);
-							log_qcy(DEBUG_WARNING, "----shut down video miss stream due to long overrun!------");
+							log_qcy(DEBUG_WARNING, "----shut down video2 miss stream due to long overrun!------");
 						}
 					}
+					else if( ret == MISS_LOCAL_ERR_MSG_BUFF_FULL ) {
+
+					}
 					else if( ret == 0) {
-						av_packet_add(packet);
+						if( _config_.memory_mode == MEMORY_MODE_SHARED ) {
+							av_packet_add(packet);
+						}
 						qos.failed_send[RUN_MODE_MISS2+i] = 0;
 					}
 				}
@@ -332,7 +341,11 @@ static int *video2_main_func(void* arg)
 					video2_quality_downgrade(&qos);
     		}
 */
-			av_packet_check(packet);
+    		if( _config_.memory_mode == MEMORY_MODE_SHARED) {
+    			av_packet_check(packet);
+    		}
+			packet = NULL;
+   			rts_av_put_buffer(buffer);
     	}
     }
     //release
@@ -469,8 +482,6 @@ static int stream_stop(void)
 static void video2_init_profile(void)
 {
 	int id;
-	if( config.profile.quality == 0 )
-		config.profile.quality = 3;		//middle range auto-quality
 	id = config.profile.quality;
 	config.h264.h264_attr.bps = config.h264.h264_bitrate[id];
 	config.h264.h264_attr.gop = config.h264.h264_gop[id];
@@ -481,6 +492,7 @@ static void video2_init_profile(void)
 static int video2_init(void)
 {
 	int ret;
+	struct rts_video_h264_ctrl *ctrl = NULL;
 	stream_init();
 	stream.isp = rts_av_create_isp_chn(&config.isp);
 	if (stream.isp < 0) {
@@ -488,14 +500,29 @@ static int video2_init(void)
 		return -1;
 	}
 	log_qcy(DEBUG_INFO, "isp chnno:%d", stream.isp);
-	video2_init_profile();
-	config.h264.h264_attr.gop = 2 * config.profile.profile[config.profile.quality].video.denominator;
+//	video2_init_profile();
+//	config.h264.h264_attr.gop = 2 * config.profile.profile[config.profile.quality].video.denominator;
 	stream.h264 = rts_av_create_h264_chn(&config.h264.h264_attr);
 	if (stream.h264 < 0) {
 		log_qcy(DEBUG_SERIOUS, "fail to create h264 chn, ret = %d", stream.h264);
 		return -1;
 	}
 	log_qcy(DEBUG_INFO, "h264 chnno:%d", stream.h264);
+	ret = rts_av_query_h264_ctrl(stream.h264, &ctrl);
+	if (ret) {
+		log_qcy(DEBUG_WARNING, "query h264 ctrl fail, ret = %d\n", ret);
+	    return -1;
+	}
+	ctrl->bitrate_mode = RTS_BITRATE_MODE_CBR;
+	ctrl->max_bitrate = config.h264.h264_ctrl.max_bitrate;
+	ctrl->min_bitrate = config.h264.h264_ctrl.min_bitrate;
+	ret = rts_av_set_h264_ctrl(ctrl);
+	if(ret) {
+		RTS_SAFE_RELEASE(ctrl, rts_av_release_h264_ctrl);
+		log_qcy(DEBUG_WARNING, "set h264 ctrl fail, ret = %d\n", ret);
+	    return -1;
+	}
+	RTS_SAFE_RELEASE(ctrl, rts_av_release_h264_ctrl);
 	config.profile.profile[config.profile.quality].fmt = RTS_V_FMT_YUV420SEMIPLANAR;
 	ret = rts_av_set_profile(stream.isp, &config.profile.profile[config.profile.quality]);
 	if (ret) {
@@ -532,11 +559,14 @@ static int video2_init(void)
 
 static void write_video2_info(struct rts_av_buffer *data, av_data_info_t	*info)
 {
+	struct rts_av_profile profile;
+	rts_av_get_profile(stream.isp, &profile);
 	info->flag = data->flags;
 	info->frame_index = data->frame_idx;
 //	info->timestamp = data->timestamp / 1000;
 	info->timestamp = ( ( data->timestamp - stream.realtek_stamp ) / 1000) + stream.unix_stamp * 1000;
-	info->fps = config.profile.profile[config.profile.quality].video.denominator;
+//	info->fps = config.profile.profile[config.profile.quality].video.denominator;
+	info->fps = profile.video.denominator;
 	info->width = config.profile.profile[config.profile.quality].video.width;
 	info->height = config.profile.profile[config.profile.quality].video.height;
    	info->flag |= FLAG_STREAM_TYPE_LIVE << 11;
@@ -549,12 +579,7 @@ static void write_video2_info(struct rts_av_buffer *data, av_data_info_t	*info)
     	info->flag |= FLAG_FRAME_TYPE_IFRAME << 0;
     else
     	info->flag |= FLAG_FRAME_TYPE_PBFRAME << 0;
-    if( (config.profile.quality==1) || (config.profile.quality==3) || (config.profile.quality==4) )
-        info->flag |= FLAG_RESOLUTION_VIDEO_360P << 17;
-    else if( (config.profile.quality==5) || (config.profile.quality==6))
-        info->flag |= FLAG_RESOLUTION_VIDEO_480P << 17;
-    else if( (config.profile.quality==2) || (config.profile.quality==7) || (config.profile.quality==8) )
-        info->flag |= FLAG_RESOLUTION_VIDEO_1080P << 17;
+    info->flag |= FLAG_RESOLUTION_VIDEO_360P << 17;
     info->size = data->bytesused;
 }
 
@@ -569,8 +594,17 @@ static int write_video2_buffer(av_packet_t *data, int id, int target, int channe
 	msg.arg_in.handler = session[channel];
 	msg.message = id;
 	msg.arg = data;
-	msg.arg_size = 0;	//make sure this is 0 for non-deep-copy
-	msg.extra_size = 0;
+	if( _config_.memory_mode == MEMORY_MODE_SHARED ) {
+		msg.arg = data;
+		msg.arg_size = 0;	//make sure this is 0 for non-deep-copy
+		msg.extra_size = 0;
+	}
+	else {
+		msg.arg = data->data;
+		msg.arg_size = data->info.size;
+		msg.extra = &(data->info);
+		msg.extra_size = sizeof(data->info);
+	}
 	if( target == SERVER_MISS )
 		ret = server_miss_video_message(&msg);
 	/****************************/
@@ -878,8 +912,6 @@ static void task_control_ext(void)
 				}
 				else if( info.task.msg.arg_in.cat == VIDEO2_PROPERTY_QUALITY ) {
 					temp = *((int*)(info.task.msg.arg));
-					if( temp == 0 )
-						temp = 3;	//choose a middle range quality for auto mode
 					config.profile.quality = temp;
 					log_qcy(DEBUG_INFO, "changed the video quality = %d", config.profile.quality);
 					video2_config_video_set(CONFIG_VIDEO2_PROFILE, &config.profile);
@@ -922,8 +954,7 @@ static void task_control_ext(void)
 				}
 				else if( info.task.msg.arg_in.cat == VIDEO2_PROPERTY_QUALITY ) {
 					temp = *((int*)(info.task.msg.arg));
-					if( ( (temp == 0) && (config.profile.quality >= AUTO_PROFILE_START) ) ||
-						( temp == config.profile.quality) ) {	//not change if quality is the same
+					if( ( temp == config.profile.quality) ) {	//not change if quality is the same
 						msg.arg_in.wolf = 0;
 						msg.arg = &temp;
 						msg.arg_size = sizeof(temp);
@@ -989,8 +1020,6 @@ static void task_control(void)
 			if( info.thread_start == 0) {
 				if( info.task.msg.arg_in.cat == VIDEO2_PROPERTY_QUALITY ) {
 					temp = *((int*)(info.task.msg.arg));
-					if( temp == 0 )
-						temp = 3;	//choose a middle range quality for auto mode
 					config.profile.quality = temp;
 					log_qcy(DEBUG_INFO, "changed the quality = %d", config.profile.quality);
 					video2_config_video_set(CONFIG_VIDEO2_PROFILE, &config.profile);
@@ -1012,8 +1041,7 @@ static void task_control(void)
 			if( !para_set ) {
 				if( info.task.msg.arg_in.cat == VIDEO2_PROPERTY_QUALITY ) {
 					temp = *((int*)(info.task.msg.arg));
-					if( ( (temp == 0) && (config.profile.quality >= AUTO_PROFILE_START) ) ||
-						( temp == config.profile.quality) ) {	//not change if quality is the same
+					if( ( temp == config.profile.quality) ) {	//not change if quality is the same
 						msg.arg_in.wolf = 0;
 						msg.arg = &temp;
 						msg.arg_size = sizeof(temp);
@@ -1042,7 +1070,7 @@ exit:
 	manager_common_send_message( info.task.msg.receiver, &msg);
 	msg_free(&info.task.msg);
 	para_set = 0;
-	info.task.func = task_default;
+	info.task.func = &task_default;
 	info.msg_lock = 0;
 	return;
 }
@@ -1252,12 +1280,9 @@ static void *server_func(void)
 {
     signal(SIGINT, server_thread_termination);
     signal(SIGTERM, server_thread_termination);
-    signal(SIGSEGV, signal_handler);
-    signal(SIGFPE,  signal_handler);
-    signal(SIGBUS,  signal_handler);
 	misc_set_thread_name("server_video2");
 	pthread_detach(pthread_self());
-	msg_buffer_init2(&message, MSG_BUFFER_OVERFLOW_NO, &mutex);
+	msg_buffer_init2(&message, _config_.msg_overrun, &mutex);
 	info.init = 1;
 	//default task
 	info.task.func = task_default;

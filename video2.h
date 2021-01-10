@@ -37,5 +37,7 @@
 /*
  * function
  */
+int video3_md_trigger_message(void);
+int video3_spd_trigger_message(void);
 
 #endif /* SERVER_VIDEO2_VIDEO2_H_ */

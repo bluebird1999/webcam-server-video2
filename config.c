@@ -67,8 +67,8 @@ static config_map_t video2_config_h264_map[] = {
 	{"bitrate_mode",				&(video2_config.h264.h264_ctrl.bitrate_mode),				cfg_u32, 8,0,0,1000000,},
 	{"gop_mode",					&(video2_config.h264.h264_ctrl.gop_mode),					cfg_u32, 0,0,0,100,},
 	{"bitrate",						&(video2_config.h264.h264_ctrl.bitrate),						cfg_u32, 0,0,0,40000000,},
-	{"max_bitrate",					&(video2_config.h264.h264_ctrl.max_bitrate),					cfg_u32, 0,0,0,100,},
-    {"min_bitrate", 				&(video2_config.h264.h264_ctrl.min_bitrate), 				cfg_u32, 0,0,0,100,},
+	{"max_bitrate",					&(video2_config.h264.h264_ctrl.max_bitrate),					cfg_u32, 0,0,0,100000000,},
+    {"min_bitrate", 				&(video2_config.h264.h264_ctrl.min_bitrate), 				cfg_u32, 0,0,0,100000000,},
     {"qp",							&(video2_config.h264.h264_ctrl.qp),							cfg_s32, 0,0,-1,100,},
 	{"max_qp",						&(video2_config.h264.h264_ctrl.max_qp),						cfg_u32, 0,0,0,51,},
 	{"min_qp",						&(video2_config.h264.h264_ctrl.min_qp),						cfg_u32, 0,0,0,51,},
@@ -297,7 +297,7 @@ int video2_config_video_read(video2_config_t *vconf)
 	else
 		misc_set_bit(&video2_config.status, CONFIG_VIDEO2_PROFILE,0);
 	ret1 |= ret;
-	video2_config_init_auto_profile();
+//	video2_config_init_auto_profile();
 	memset(fname,0,sizeof(fname));
 	sprintf(fname,"%s%s",_config_.qcy_path, CONFIG_VIDEO2_ISP_PATH);
 	ret = read_config_file(&video2_config_isp_map,fname );
