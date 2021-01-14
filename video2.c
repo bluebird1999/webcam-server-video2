@@ -273,10 +273,10 @@ static int *video2_main_func(void* arg)
     		continue;
     	}
     	if ( buffer ) {
-        	if( (buffer->bytesused > 200*1024) ) {
+        	if( (buffer->bytesused > MAX_VIDEO_FRAME_SIZE) ) {
     			log_qcy(DEBUG_WARNING, "+++++++++++++++++realtek video2 frame size=%d!!!!!!", buffer->bytesused);
-//    			rts_av_put_buffer(buffer);
- //   			continue;
+    			rts_av_put_buffer(buffer);
+    			continue;
         	}
         	if( misc_mips_address_check((unsigned int)buffer->vm_addr) ) {
     			log_qcy(DEBUG_WARNING, "realtek video2 memory address anomity =%p!!!!!!", buffer->vm_addr);
@@ -941,6 +941,7 @@ static void task_control_ext(void)
 			break;
 		case STATUS_START:
 			server_start();
+			break;
 		case STATUS_RUN:
 			if( !para_set ) {
 				if( info.task.msg.arg_in.cat == VIDEO2_PROPERTY_TIME_WATERMARK ) {
