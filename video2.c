@@ -513,9 +513,15 @@ static int video2_init(void)
 		log_qcy(DEBUG_WARNING, "query h264 ctrl fail, ret = %d\n", ret);
 	    return -1;
 	}
-	ctrl->bitrate_mode = RTS_BITRATE_MODE_CBR;
-	ctrl->max_bitrate = config.h264.h264_ctrl.max_bitrate;
-	ctrl->min_bitrate = config.h264.h264_ctrl.min_bitrate;
+	ctrl->gop_mode = config.h264.h264_ctrl.gop_mode;
+	ctrl->max_qp = config.h264.h264_ctrl.max_qp;
+	ctrl->min_qp = config.h264.h264_ctrl.min_qp;
+	ctrl->bitrate_mode = config.h264.h264_ctrl.bitrate_mode;
+	if(ctrl->bitrate_mode == RTS_BITRATE_MODE_C_VBR)
+	{
+		ctrl->max_bitrate = config.h264.h264_ctrl.max_bitrate;
+		ctrl->min_bitrate = config.h264.h264_ctrl.min_bitrate;
+	}
 	ret = rts_av_set_h264_ctrl(ctrl);
 	if(ret) {
 		RTS_SAFE_RELEASE(ctrl, rts_av_release_h264_ctrl);

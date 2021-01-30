@@ -328,7 +328,7 @@ int video2_osd_init(video2_osd_config_t *ctrl, int stream, int width, int height
 	}
 	else {
 		osd2_run.pixel_size = 16;
-		osd2_run.offset_x = 4;
+		osd2_run.offset_x = 20;
 		osd2_run.offset_y = 4;
 	}
 	FT_Set_Pixel_Sizes(osd2_run.face, osd2_run.pixel_size, 0);
